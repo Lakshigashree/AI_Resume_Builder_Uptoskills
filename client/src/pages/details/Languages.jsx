@@ -10,7 +10,7 @@ const Languages = () => {
   const { resumeData, updateResumeData } = useContext(ResumeContext);
 
   const [languages, setLanguages] = useState(
-    resumeData?.languages || [
+    resumeData?.languagesDetailed || [ // Priority to detailed structure if it exists
       {
         id: 1,
         language: '',
@@ -48,11 +48,19 @@ const Languages = () => {
   };
 
   const handleNext = () => {
+    // VALIDATION: Ensure at least one language name is typed
+    const hasValidEntry = languages.some(lang => lang.language.trim() !== '');
+    
+    if (!hasValidEntry) {
+      alert("Please enter at least one language.");
+      return;
+    }
+
     const updatedData = {
       ...resumeData,
       // Map languages to the format expected by templates (array of strings)
       languages: languages.filter(lang => lang.language.trim()).map(lang => lang.language),
-      // Also keep the structured format for other use
+      // Keep the detailed version for future editing
       languagesDetailed: languages
     };
     
@@ -119,7 +127,7 @@ const Languages = () => {
           </p>
         </motion.div>
 
-        {/* Languages */}
+        {/* Languages Section */}
         <div className="space-y-6 mb-8">
           {languages.map((language, index) => (
             <motion.div
@@ -146,19 +154,26 @@ const Languages = () => {
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Language */}
+                {/* Language Input - VALIDATION ADDED */}
                 <div>
                   <label className="block text-white font-semibold mb-2">Language *</label>
                   <input
                     type="text"
                     value={language.language}
+                    onKeyPress={(e) => {
+                      // Only allow letters and spaces (No numbers or symbols)
+                      if (!/[a-zA-Z\s]/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     onChange={(e) => handleInputChange(language.id, 'language', e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-gray-700 border border-gray-600 text-white focus:border-teal-400 focus:outline-none transition-all duration-300"
                     placeholder="e.g. English, Hindi, Spanish"
+                    required
                   />
                 </div>
 
-                {/* Proficiency */}
+                {/* Proficiency Selection */}
                 <div>
                   <label className="block text-white font-semibold mb-2">Proficiency Level</label>
                   <select
@@ -206,7 +221,6 @@ const Languages = () => {
           >
             Next
           </button>
-          
         </motion.div>
       </motion.div>
     </div>

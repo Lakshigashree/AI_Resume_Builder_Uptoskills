@@ -531,7 +531,19 @@ const Template11 = () => {
                     ) : (
                       localData[field] && (
                         <p key={field} style={{ margin: "0", padding: "4px" }}>
-                          <strong>{field.charAt(0).toUpperCase() + field.slice(1)}:</strong> {localData[field]}
+                          <strong>{field.charAt(0).toUpperCase() + field.slice(1)}:</strong>{" "}
+                          {["linkedin", "github", "portfolio", "email"].includes(field) ? (
+                            <a
+                              href={field === "email" ? `mailto:${localData[field]}` : localData[field]}
+                              target={field === "email" ? undefined : "_blank"}
+                              rel={field === "email" ? undefined : "noopener noreferrer"}
+                              style={{ color: "inherit", textDecoration: "none" }}
+                            >
+                              {localData[field]}
+                            </a>
+                          ) : (
+                            localData[field]
+                          )}
                         </p>
                       )
                     )

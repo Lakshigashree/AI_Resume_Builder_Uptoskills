@@ -15,9 +15,8 @@ const DotRow = ({ filled = 0 }) => {
         // eslint-disable-next-line react/no-array-index-key
         <span
           key={idx}
-          className={`h-1.5 w-1.5 rounded-full ${
-            idx < filled ? "bg-[#4e6f73]" : "bg-white border border-[#4e6f73]/30"
-          }`}
+          className={`h-1.5 w-1.5 rounded-full ${idx < filled ? "bg-[#4e6f73]" : "bg-white border border-[#4e6f73]/30"
+            }`}
         />
       ))}
     </div>
@@ -62,7 +61,7 @@ const TemplateNew = () => {
   const [editMode, setEditMode] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [isSavingToDatabase, setIsSavingToDatabase] = useState(false);
-  
+
 
   useEffect(() => {
     setLocalData(resumeData || {});
@@ -161,6 +160,7 @@ const TemplateNew = () => {
   const email = localData.email || "ellabrooks@gmail.com";
   const location = localData.location || "Chennai, India";
   const linkedin = localData.linkedin || "linkedin.com/in/ella";
+  const github = localData.github || "github.com/ella";
 
   // Personal profile / summary: start empty by default and show only what user types
   const summary =
@@ -450,6 +450,24 @@ const TemplateNew = () => {
                                 ✕
                               </button>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={github}
+                                onChange={(e) =>
+                                  handleFieldChange("github", e.target.value)
+                                }
+                                className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
+                                placeholder="GitHub"
+                              />
+                              <button
+                                onClick={() => handleFieldChange("github", "")}
+                                className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                title="Remove GitHub"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           </div>
                         ) : (
                           <>
@@ -475,6 +493,12 @@ const TemplateNew = () => {
                               <p className="flex items-center gap-2 break-all">
                                 <span className="text-[12px]">in</span>
                                 <span>{linkedin}</span>
+                              </p>
+                            )}
+                            {github && (
+                              <p className="flex items-center gap-2 break-all">
+                                <span className="text-[12px]">GitHub</span>
+                                <a href={github} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{github}</a>
                               </p>
                             )}
                           </>
@@ -789,117 +813,117 @@ const TemplateNew = () => {
                       {(editMode || hasEducation()) && (
                         <TimelineSection number="02" title="EDUCATION">
                           {editMode ? (
-                          <div className="space-y-4 hide-in-pdf">
-                            <div className="mb-1 flex justify-end">
+                            <div className="space-y-4 hide-in-pdf">
+                              <div className="mb-1 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleFieldChange("education", [])}
+                                  className="text-xs text-red-500 hover:underline"
+                                >
+                                  Remove section
+                                </button>
+                              </div>
+                              {education.map((edu, index) => (
+                                <div
+                                  key={index}
+                                  className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-gray-600">
+                                      Education #{index + 1}
+                                    </span>
+                                    {education.length > 1 && (
+                                      <button
+                                        onClick={() => {
+                                          const updated = education.filter(
+                                            (_, i) => i !== index
+                                          );
+                                          handleFieldChange("education", updated);
+                                        }}
+                                        className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={edu.degree || ""}
+                                    onChange={(e) => {
+                                      const updated = [...education];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        degree: e.target.value,
+                                      };
+                                      handleFieldChange("education", updated);
+                                    }}
+                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                                    placeholder="Degree (e.g., BE in Computer Science)"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={edu.institution || ""}
+                                    onChange={(e) => {
+                                      const updated = [...education];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        institution: e.target.value,
+                                      };
+                                      handleFieldChange("education", updated);
+                                    }}
+                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                                    placeholder="Institution (e.g., Bluefield University (2017 – 2021))"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={edu.year || ""}
+                                    onChange={(e) => {
+                                      const updated = [...education];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        year: e.target.value,
+                                      };
+                                      handleFieldChange("education", updated);
+                                    }}
+                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                                    placeholder="Year (optional)"
+                                  />
+                                </div>
+                              ))}
                               <button
-                                type="button"
-                                onClick={() => handleFieldChange("education", [])}
-                                className="text-xs text-red-500 hover:underline"
+                                onClick={() => {
+                                  const updated = [
+                                    ...education,
+                                    { degree: "", institution: "", year: "" },
+                                  ];
+                                  handleFieldChange("education", updated);
+                                }}
+                                className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
                               >
-                                Remove section
+                                + Add Education
                               </button>
                             </div>
-                            {education.map((edu, index) => (
-                              <div
-                                key={index}
-                                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-semibold text-gray-600">
-                                    Education #{index + 1}
-                                  </span>
-                                  {education.length > 1 && (
-                                    <button
-                                      onClick={() => {
-                                        const updated = education.filter(
-                                          (_, i) => i !== index
-                                        );
-                                        handleFieldChange("education", updated);
-                                      }}
-                                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                    >
-                                      Remove
-                                    </button>
+                          ) : (
+                            <div className="space-y-3">
+                              {education.map((edu, index) => (
+                                <div key={index}>
+                                  {edu.degree && (
+                                    <p className="text-[14px] font-semibold text-[#273335]">
+                                      {edu.degree}
+                                    </p>
+                                  )}
+                                  {(edu.institution || edu.year) && (
+                                    <p className="mt-0.5 text-[14px] font-medium text-[#4f6669]">
+                                      {edu.institution}
+                                      {edu.year && ` (${edu.year})`}
+                                    </p>
+                                  )}
+                                  {index < education.length - 1 && (
+                                    <div className="my-2 h-px bg-gray-200" />
                                   )}
                                 </div>
-                                <input
-                                  type="text"
-                                  value={edu.degree || ""}
-                                  onChange={(e) => {
-                                    const updated = [...education];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      degree: e.target.value,
-                                    };
-                                    handleFieldChange("education", updated);
-                                  }}
-                                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                  placeholder="Degree (e.g., BE in Computer Science)"
-                                />
-                                <input
-                                  type="text"
-                                  value={edu.institution || ""}
-                                  onChange={(e) => {
-                                    const updated = [...education];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      institution: e.target.value,
-                                    };
-                                    handleFieldChange("education", updated);
-                                  }}
-                                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                  placeholder="Institution (e.g., Bluefield University (2017 – 2021))"
-                                />
-                                <input
-                                  type="text"
-                                  value={edu.year || ""}
-                                  onChange={(e) => {
-                                    const updated = [...education];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      year: e.target.value,
-                                    };
-                                    handleFieldChange("education", updated);
-                                  }}
-                                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                  placeholder="Year (optional)"
-                                />
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => {
-                                const updated = [
-                                  ...education,
-                                  { degree: "", institution: "", year: "" },
-                                ];
-                                handleFieldChange("education", updated);
-                              }}
-                              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                            >
-                              + Add Education
-                            </button>
-                          </div>
-                          ) : (
-                          <div className="space-y-3">
-                            {education.map((edu, index) => (
-                              <div key={index}>
-                                {edu.degree && (
-                                  <p className="text-[14px] font-semibold text-[#273335]">
-                                    {edu.degree}
-                                  </p>
-                                )}
-                                {(edu.institution || edu.year) && (
-                                  <p className="mt-0.5 text-[14px] font-medium text-[#4f6669]">
-                                    {edu.institution}
-                                    {edu.year && ` (${edu.year})`}
-                                  </p>
-                                )}
-                                {index < education.length - 1 && (
-                                  <div className="my-2 h-px bg-gray-200" />
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
                           )}
                         </TimelineSection>
                       )}
@@ -908,101 +932,101 @@ const TemplateNew = () => {
                       {(editMode || hasProjects()) && (
                         <TimelineSection number="03" title="PROJECTS">
                           {editMode ? (
-                          <div className="space-y-4 hide-in-pdf">
-                            <div className="mb-1 flex justify-end">
+                            <div className="space-y-4 hide-in-pdf">
+                              <div className="mb-1 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleFieldChange("projects", [])}
+                                  className="text-xs text-red-500 hover:underline"
+                                >
+                                  Remove section
+                                </button>
+                              </div>
+                              {projects.map((project, index) => (
+                                <div
+                                  key={index}
+                                  className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-gray-600">
+                                      Project #{index + 1}
+                                    </span>
+                                    {projects.length > 1 && (
+                                      <button
+                                        onClick={() => {
+                                          const updated = projects.filter(
+                                            (_, i) => i !== index
+                                          );
+                                          handleFieldChange("projects", updated);
+                                        }}
+                                        className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={project.name || ""}
+                                    onChange={(e) => {
+                                      const updated = [...projects];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        name: e.target.value,
+                                      };
+                                      handleFieldChange("projects", updated);
+                                    }}
+                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                                    placeholder="Project Name (e.g., Portfolio Website)"
+                                  />
+                                  <textarea
+                                    value={project.description || ""}
+                                    onChange={(e) => {
+                                      const updated = [...projects];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        description: e.target.value,
+                                      };
+                                      handleFieldChange("projects", updated);
+                                    }}
+                                    className="h-24 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
+                                    placeholder="Project description"
+                                  />
+                                </div>
+                              ))}
                               <button
-                                type="button"
-                                onClick={() => handleFieldChange("projects", [])}
-                                className="text-xs text-red-500 hover:underline"
+                                onClick={() => {
+                                  const updated = [
+                                    ...projects,
+                                    { name: "", description: "" },
+                                  ];
+                                  handleFieldChange("projects", updated);
+                                }}
+                                className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
                               >
-                                Remove section
+                                + Add Project
                               </button>
                             </div>
-                            {projects.map((project, index) => (
-                              <div
-                                key={index}
-                                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-semibold text-gray-600">
-                                    Project #{index + 1}
-                                  </span>
-                                  {projects.length > 1 && (
-                                    <button
-                                      onClick={() => {
-                                        const updated = projects.filter(
-                                          (_, i) => i !== index
-                                        );
-                                        handleFieldChange("projects", updated);
-                                      }}
-                                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                    >
-                                      Remove
-                                    </button>
+                          ) : (
+                            <div className="space-y-3">
+                              {projects.map((project, index) => (
+                                <div key={index}>
+                                  {project.name && (
+                                    <p className="text-[14px] font-semibold text-[#273335]">
+                                      {project.name}
+                                    </p>
+                                  )}
+                                  {project.description && (
+                                    <p className="text-[14px] text-[#4f6669]">
+                                      {project.description}
+                                    </p>
+                                  )}
+                                  {index < projects.length - 1 && (
+                                    <div className="my-2 h-px bg-gray-200" />
                                   )}
                                 </div>
-                                <input
-                                  type="text"
-                                  value={project.name || ""}
-                                  onChange={(e) => {
-                                    const updated = [...projects];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      name: e.target.value,
-                                    };
-                                    handleFieldChange("projects", updated);
-                                  }}
-                                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                  placeholder="Project Name (e.g., Portfolio Website)"
-                                />
-                                <textarea
-                                  value={project.description || ""}
-                                  onChange={(e) => {
-                                    const updated = [...projects];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      description: e.target.value,
-                                    };
-                                    handleFieldChange("projects", updated);
-                                  }}
-                                  className="h-24 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
-                                  placeholder="Project description"
-                                />
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => {
-                                const updated = [
-                                  ...projects,
-                                  { name: "", description: "" },
-                                ];
-                                handleFieldChange("projects", updated);
-                              }}
-                              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                            >
-                              + Add Project
-                            </button>
-                          </div>
-                          ) : (
-                          <div className="space-y-3">
-                            {projects.map((project, index) => (
-                              <div key={index}>
-                                {project.name && (
-                                  <p className="text-[14px] font-semibold text-[#273335]">
-                                    {project.name}
-                                  </p>
-                                )}
-                                {project.description && (
-                                  <p className="text-[14px] text-[#4f6669]">
-                                    {project.description}
-                                  </p>
-                                )}
-                                {index < projects.length - 1 && (
-                                  <div className="my-2 h-px bg-gray-200" />
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
                           )}
                         </TimelineSection>
                       )}
@@ -1011,137 +1035,137 @@ const TemplateNew = () => {
                       {(editMode || hasExperience()) && (
                         <TimelineSection number="04" title="EXPERIENCE">
                           {editMode ? (
-                          <div className="space-y-4 hide-in-pdf">
-                            <div className="mb-1 flex justify-end">
+                            <div className="space-y-4 hide-in-pdf">
+                              <div className="mb-1 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleFieldChange("experience", [])
+                                  }
+                                  className="text-xs text-red-500 hover:underline"
+                                >
+                                  Remove section
+                                </button>
+                              </div>
+                              {experience.map((exp, index) => (
+                                <div
+                                  key={index}
+                                  className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-gray-600">
+                                      Experience #{index + 1}
+                                    </span>
+                                    {experience.length > 1 && (
+                                      <button
+                                        onClick={() => {
+                                          const updated = experience.filter(
+                                            (_, i) => i !== index
+                                          );
+                                          handleFieldChange("experience", updated);
+                                        }}
+                                        className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={exp.title || ""}
+                                    onChange={(e) => {
+                                      const updated = [...experience];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        title: e.target.value,
+                                      };
+                                      handleFieldChange("experience", updated);
+                                    }}
+                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                                    placeholder="Job Title (e.g., Frontend Intern)"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={exp.company || ""}
+                                    onChange={(e) => {
+                                      const updated = [...experience];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        company: e.target.value,
+                                      };
+                                      handleFieldChange("experience", updated);
+                                    }}
+                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                                    placeholder="Company (e.g., Google)"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={exp.duration || ""}
+                                    onChange={(e) => {
+                                      const updated = [...experience];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        duration: e.target.value,
+                                      };
+                                      handleFieldChange("experience", updated);
+                                    }}
+                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                                    placeholder="Duration (e.g., 2022 – 2023)"
+                                  />
+                                  <textarea
+                                    value={exp.description || ""}
+                                    onChange={(e) => {
+                                      const updated = [...experience];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        description: e.target.value,
+                                      };
+                                      handleFieldChange("experience", updated);
+                                    }}
+                                    className="h-24 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
+                                    placeholder="Job description and responsibilities"
+                                  />
+                                </div>
+                              ))}
                               <button
-                                type="button"
-                                onClick={() =>
-                                  handleFieldChange("experience", [])
-                                }
-                                className="text-xs text-red-500 hover:underline"
+                                onClick={() => {
+                                  const updated = [
+                                    ...experience,
+                                    { title: "", company: "", duration: "", description: "" },
+                                  ];
+                                  handleFieldChange("experience", updated);
+                                }}
+                                className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
                               >
-                                Remove section
+                                + Add Experience
                               </button>
                             </div>
-                            {experience.map((exp, index) => (
-                              <div
-                                key={index}
-                                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-semibold text-gray-600">
-                                    Experience #{index + 1}
-                                  </span>
-                                  {experience.length > 1 && (
-                                    <button
-                                      onClick={() => {
-                                        const updated = experience.filter(
-                                          (_, i) => i !== index
-                                        );
-                                        handleFieldChange("experience", updated);
-                                      }}
-                                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                    >
-                                      Remove
-                                    </button>
+                          ) : (
+                            <div className="space-y-4">
+                              {experience.map((exp, index) => (
+                                <div key={index}>
+                                  {exp.title && (
+                                    <p className="text-[14px] font-semibold text-[#273335]">
+                                      {exp.title}
+                                      {exp.company && ` — ${exp.company}`}
+                                    </p>
+                                  )}
+                                  {exp.duration && (
+                                    <p className="text-[14px] font-medium text-[#4f6669]">
+                                      {exp.duration}
+                                    </p>
+                                  )}
+                                  {exp.description && (
+                                    <p className="mt-1.5 text-[14px] text-[#4f6669]">
+                                      {exp.description}
+                                    </p>
+                                  )}
+                                  {index < experience.length - 1 && (
+                                    <div className="my-3 h-px bg-gray-200" />
                                   )}
                                 </div>
-                                <input
-                                  type="text"
-                                  value={exp.title || ""}
-                                  onChange={(e) => {
-                                    const updated = [...experience];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      title: e.target.value,
-                                    };
-                                    handleFieldChange("experience", updated);
-                                  }}
-                                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                  placeholder="Job Title (e.g., Frontend Intern)"
-                                />
-                                <input
-                                  type="text"
-                                  value={exp.company || ""}
-                                  onChange={(e) => {
-                                    const updated = [...experience];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      company: e.target.value,
-                                    };
-                                    handleFieldChange("experience", updated);
-                                  }}
-                                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                  placeholder="Company (e.g., Google)"
-                                />
-                                <input
-                                  type="text"
-                                  value={exp.duration || ""}
-                                  onChange={(e) => {
-                                    const updated = [...experience];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      duration: e.target.value,
-                                    };
-                                    handleFieldChange("experience", updated);
-                                  }}
-                                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                  placeholder="Duration (e.g., 2022 – 2023)"
-                                />
-                                <textarea
-                                  value={exp.description || ""}
-                                  onChange={(e) => {
-                                    const updated = [...experience];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      description: e.target.value,
-                                    };
-                                    handleFieldChange("experience", updated);
-                                  }}
-                                  className="h-24 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
-                                  placeholder="Job description and responsibilities"
-                                />
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => {
-                                const updated = [
-                                  ...experience,
-                                  { title: "", company: "", duration: "", description: "" },
-                                ];
-                                handleFieldChange("experience", updated);
-                              }}
-                              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                            >
-                              + Add Experience
-                            </button>
-                          </div>
-                          ) : (
-                          <div className="space-y-4">
-                            {experience.map((exp, index) => (
-                              <div key={index}>
-                                {exp.title && (
-                                  <p className="text-[14px] font-semibold text-[#273335]">
-                                    {exp.title}
-                                    {exp.company && ` — ${exp.company}`}
-                                  </p>
-                                )}
-                                {exp.duration && (
-                                  <p className="text-[14px] font-medium text-[#4f6669]">
-                                    {exp.duration}
-                                  </p>
-                                )}
-                                {exp.description && (
-                                  <p className="mt-1.5 text-[14px] text-[#4f6669]">
-                                    {exp.description}
-                                  </p>
-                                )}
-                                {index < experience.length - 1 && (
-                                  <div className="my-3 h-px bg-gray-200" />
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
                           )}
                         </TimelineSection>
                       )}
@@ -1150,97 +1174,97 @@ const TemplateNew = () => {
                       {(editMode || hasCertifications()) && (
                         <TimelineSection number="05" title="CERTIFICATIONS">
                           {editMode ? (
-                          <div className="space-y-4 hide-in-pdf">
-                            <div className="mb-1 flex justify-end">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleFieldChange("certifications", [])
-                                }
-                                className="text-xs text-red-500 hover:underline"
-                              >
-                                Remove section
-                              </button>
-                            </div>
-                            {certifications.map((cert, index) => (
-                              <div
-                                key={index}
-                                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-semibold text-gray-600">
-                                    Certification #{index + 1}
-                                  </span>
-                                  {certifications.length > 1 && (
-                                    <button
-                                      onClick={() => {
-                                        const updated = certifications.filter(
-                                          (_, i) => i !== index
-                                        );
-                                        handleFieldChange("certifications", updated);
-                                      }}
-                                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={cert.name || cert.title || ""}
-                                  onChange={(e) => {
-                                    const updated = [...certifications];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      name: e.target.value,
-                                      title: e.target.value,
-                                    };
-                                    handleFieldChange("certifications", updated);
-                                  }}
-                                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                  placeholder="Certification Name (e.g., AWS Cloud Practitioner)"
-                                />
-                                {cert.organization && (
+                            <div className="space-y-4 hide-in-pdf">
+                              <div className="mb-1 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleFieldChange("certifications", [])
+                                  }
+                                  className="text-xs text-red-500 hover:underline"
+                                >
+                                  Remove section
+                                </button>
+                              </div>
+                              {certifications.map((cert, index) => (
+                                <div
+                                  key={index}
+                                  className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-gray-600">
+                                      Certification #{index + 1}
+                                    </span>
+                                    {certifications.length > 1 && (
+                                      <button
+                                        onClick={() => {
+                                          const updated = certifications.filter(
+                                            (_, i) => i !== index
+                                          );
+                                          handleFieldChange("certifications", updated);
+                                        }}
+                                        className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
+                                  </div>
                                   <input
                                     type="text"
-                                    value={cert.organization || ""}
+                                    value={cert.name || cert.title || ""}
                                     onChange={(e) => {
                                       const updated = [...certifications];
                                       updated[index] = {
                                         ...updated[index],
-                                        organization: e.target.value,
+                                        name: e.target.value,
+                                        title: e.target.value,
                                       };
                                       handleFieldChange("certifications", updated);
                                     }}
                                     className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Issuing Organization (optional)"
+                                    placeholder="Certification Name (e.g., AWS Cloud Practitioner)"
                                   />
-                                )}
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => {
-                                const updated = [
-                                  ...certifications,
-                                  { name: "", title: "" },
-                                ];
-                                handleFieldChange("certifications", updated);
-                              }}
-                              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                            >
-                              + Add Certification
-                            </button>
-                          </div>
-                          ) : (
-                          <ul className="ml-4 list-disc space-y-1 text-[14px] marker:text-[#4e6f73]">
-                            {certifications
-                              .map((c) => c?.name || c?.title || "")
-                              .filter(Boolean)
-                              .map((cert, idx) => (
-                                // eslint-disable-next-line react/no-array-index-key
-                                <li key={idx}>{cert}</li>
+                                  {cert.organization && (
+                                    <input
+                                      type="text"
+                                      value={cert.organization || ""}
+                                      onChange={(e) => {
+                                        const updated = [...certifications];
+                                        updated[index] = {
+                                          ...updated[index],
+                                          organization: e.target.value,
+                                        };
+                                        handleFieldChange("certifications", updated);
+                                      }}
+                                      className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                                      placeholder="Issuing Organization (optional)"
+                                    />
+                                  )}
+                                </div>
                               ))}
-                          </ul>
+                              <button
+                                onClick={() => {
+                                  const updated = [
+                                    ...certifications,
+                                    { name: "", title: "" },
+                                  ];
+                                  handleFieldChange("certifications", updated);
+                                }}
+                                className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
+                              >
+                                + Add Certification
+                              </button>
+                            </div>
+                          ) : (
+                            <ul className="ml-4 list-disc space-y-1 text-[14px] marker:text-[#4e6f73]">
+                              {certifications
+                                .map((c) => c?.name || c?.title || "")
+                                .filter(Boolean)
+                                .map((cert, idx) => (
+                                  // eslint-disable-next-line react/no-array-index-key
+                                  <li key={idx}>{cert}</li>
+                                ))}
+                            </ul>
                           )}
                         </TimelineSection>
                       )}
@@ -1267,7 +1291,7 @@ const TemplateNew = () => {
                     fontSize: "0.875rem",
                     color:
                       saveStatus.includes("Error") ||
-                      saveStatus.includes("Failed")
+                        saveStatus.includes("Failed")
                         ? "#ef4444"
                         : "#10b981",
                     fontWeight: 500,

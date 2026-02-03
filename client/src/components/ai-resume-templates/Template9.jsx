@@ -87,7 +87,7 @@ const Template9 = () => {
   };
 
   const handleEnhance = (section) => {
-    
+
   };
 
   // Helper function to extract email from contact
@@ -114,12 +114,12 @@ const Template9 = () => {
       ...localData,
       experience: [
         ...(localData.experience || []),
-        { 
-          title: "New Position", 
-          companyName: "New Company", 
-          date: "MM/YYYY - MM/YYYY", 
+        {
+          title: "New Position",
+          companyName: "New Company",
+          date: "MM/YYYY - MM/YYYY",
           companyLocation: "Location",
-          accomplishment: ["New accomplishment"] 
+          accomplishment: ["New accomplishment"]
         },
       ],
     });
@@ -194,8 +194,8 @@ const Template9 = () => {
       ...localData,
       projects: [
         ...(localData.projects || []),
-        { 
-          name: "New Project", 
+        {
+          name: "New Project",
           description: "Description here",
           technologies: ["Tech1", "Tech2"],
           link: "https://example.com",
@@ -218,11 +218,11 @@ const Template9 = () => {
       <div style={{ display: "flex" }}>
         <Sidebar onEnhance={handleEnhance} resumeRef={resumeRef} />
 
-        <div style={{ 
-          flexGrow: 1, 
+        <div style={{
+          flexGrow: 1,
           padding: "1rem",
-          display: "flex", 
-          flexDirection: "column", 
+          display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           width: "100%",
           transition: "margin-left 0.3s ease-in-out"
@@ -324,7 +324,7 @@ const Template9 = () => {
             )}
 
             {/* Header */}
-            <div 
+            <div
               style={{ display: "flex", justifyContent: "space-between", marginBottom: "1.5rem", textAlign: "left", paddingBottom: "1.5rem" }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -338,9 +338,9 @@ const Template9 = () => {
                       type="text"
                       value={localData.name || ""}
                       onChange={(e) => handleFieldChange("name", e.target.value)}
-                      style={{ 
-                        fontSize: "1.875rem", 
-                        fontWeight: "bold", 
+                      style={{
+                        fontSize: "1.875rem",
+                        fontWeight: "bold",
                         display: "block",
                         border: "1px solid #d1d5db",
                         padding: "0.25rem",
@@ -358,8 +358,8 @@ const Template9 = () => {
                       type="text"
                       value={localData.role || ""}
                       onChange={(e) => handleFieldChange("role", e.target.value)}
-                      style={{ 
-                        fontSize: "1.125rem", 
+                      style={{
+                        fontSize: "1.125rem",
                         color: "#6b7280",
                         border: "1px solid #d1d5db",
                         padding: "0.25rem",
@@ -382,8 +382,8 @@ const Template9 = () => {
                         value={localData.phone || ""}
                         onChange={(e) => handleFieldChange("phone", e.target.value)}
                         placeholder="Phone"
-                        style={{ 
-                          display: "block", 
+                        style={{
+                          display: "block",
                           marginBottom: "0.25rem",
                           border: "1px solid #d1d5db",
                           padding: "0.25rem",
@@ -395,8 +395,8 @@ const Template9 = () => {
                         value={localData.email || ""}
                         onChange={(e) => handleFieldChange("email", e.target.value)}
                         placeholder="Email"
-                        style={{ 
-                          display: "block", 
+                        style={{
+                          display: "block",
                           marginBottom: "0.25rem",
                           border: "1px solid #d1d5db",
                           padding: "0.25rem",
@@ -408,8 +408,8 @@ const Template9 = () => {
                         value={localData.location || ""}
                         onChange={(e) => handleFieldChange("location", e.target.value)}
                         placeholder="Location"
-                        style={{ 
-                          display: "block", 
+                        style={{
+                          display: "block",
                           marginBottom: "0.25rem",
                           border: "1px solid #d1d5db",
                           padding: "0.25rem",
@@ -421,8 +421,8 @@ const Template9 = () => {
                         value={localData.linkedin || ""}
                         onChange={(e) => handleFieldChange("linkedin", e.target.value)}
                         placeholder="LinkedIn"
-                        style={{ 
-                          display: "block", 
+                        style={{
+                          display: "block",
                           marginBottom: "0.25rem",
                           border: "1px solid #d1d5db",
                           padding: "0.25rem",
@@ -432,10 +432,10 @@ const Template9 = () => {
                     </div>
                   ) : (
                     <div>
-                      <p style={{ margin: "0.125rem 0" }}>{resumeData.phone}</p>
-                      <p style={{ margin: "0.125rem 0" }}>{resumeData.email}</p>
-                      <p style={{ margin: "0.125rem 0" }}>{resumeData.location}</p>
-                      <p style={{ margin: "0.125rem 0" }}>{resumeData.linkedin}</p>
+                      {resumeData.phone && <p style={{ margin: "0.125rem 0" }}>{resumeData.phone}</p>}
+                      {resumeData.email && <div style={{ margin: "0.125rem 0" }}><a href={`mailto:${resumeData.email}`} style={{ textDecoration: "none", color: "inherit" }}>{resumeData.email}</a></div>}
+                      {resumeData.location && <p style={{ margin: "0.125rem 0" }}>{resumeData.location}</p>}
+                      {resumeData.linkedin && <div style={{ margin: "0.125rem 0" }}><a href={resumeData.linkedin} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", color: "inherit" }}>Linked In</a></div>}
                     </div>
                   )
                 )}
@@ -444,7 +444,7 @@ const Template9 = () => {
 
             {/* Summary */}
             {visibleFields.summary && (
-              <div 
+              <div
                 style={{ marginBottom: "1.5rem" }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -458,8 +458,8 @@ const Template9 = () => {
                   <textarea
                     value={localData.summary || ""}
                     onChange={(e) => handleFieldChange("summary", e.target.value)}
-                    style={{ 
-                      width: "100%", 
+                    style={{
+                      width: "100%",
                       minHeight: "4rem",
                       border: "1px solid #d1d5db",
                       padding: "0.5rem",
@@ -477,7 +477,7 @@ const Template9 = () => {
 
             {/* Skills */}
             {visibleFields.skills && (
-              <div 
+              <div
                 style={{ marginBottom: "1.5rem" }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -555,7 +555,7 @@ const Template9 = () => {
 
             {/* Experience */}
             {visibleFields.experience && (
-              <div 
+              <div
                 style={{ marginBottom: "1.5rem" }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -701,7 +701,7 @@ const Template9 = () => {
 
             {/* Achievements */}
             {visibleFields.achievements && (
-              <div 
+              <div
                 style={{ marginBottom: "1.5rem" }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -779,7 +779,7 @@ const Template9 = () => {
 
             {/* Education */}
             {visibleFields.education && (
-              <div 
+              <div
                 style={{ marginBottom: "1.5rem" }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -906,7 +906,7 @@ const Template9 = () => {
 
             {/* Certifications/Courses */}
             {visibleFields.courses && (
-              <div 
+              <div
                 style={{ marginBottom: "1.5rem" }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1018,7 +1018,7 @@ const Template9 = () => {
 
             {/* Languages */}
             {visibleFields.languages && (
-              <div 
+              <div
                 style={{ marginBottom: "1.5rem" }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1096,7 +1096,7 @@ const Template9 = () => {
 
             {/* Projects */}
             {visibleFields.projects && (
-              <div 
+              <div
                 style={{ marginBottom: "1.5rem" }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1249,11 +1249,11 @@ const Template9 = () => {
               <>
                 <button
                   onClick={handleSave}
-                  style={{ 
-                    backgroundColor: "#10b981", 
-                    color: "white", 
-                    padding: "0.5rem 1rem", 
-                    borderRadius: "0.375rem", 
+                  style={{
+                    backgroundColor: "#10b981",
+                    color: "white",
+                    padding: "0.5rem 1rem",
+                    borderRadius: "0.375rem",
                     marginRight: "0.5rem",
                     border: "none",
                     cursor: "pointer"
@@ -1263,10 +1263,10 @@ const Template9 = () => {
                 </button>
                 <button
                   onClick={handleCancel}
-                  style={{ 
-                    backgroundColor: "#6b7280", 
-                    color: "white", 
-                    padding: "0.5rem 1rem", 
+                  style={{
+                    backgroundColor: "#6b7280",
+                    color: "white",
+                    padding: "0.5rem 1rem",
                     borderRadius: "0.375rem",
                     border: "none",
                     cursor: "pointer"
@@ -1278,10 +1278,10 @@ const Template9 = () => {
             ) : (
               <button
                 onClick={() => setEditMode(true)}
-                style={{ 
-                  backgroundColor: "#3b82f6", 
-                  color: "white", 
-                  padding: "0.5rem 1rem", 
+                style={{
+                  backgroundColor: "#3b82f6",
+                  color: "white",
+                  padding: "0.5rem 1rem",
                   borderRadius: "0.375rem",
                   border: "none",
                   cursor: "pointer"

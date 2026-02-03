@@ -886,7 +886,7 @@ const Template21 = () => {
                               }}
                             >
                               <FaLinkedin color="#87CEEB" size="12" />{" "}
-                              {resumeData.linkedin}
+                              <a href={resumeData.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{resumeData.linkedin}</a>
                             </span>
                           )}
                           {resumeData.location && (
@@ -921,7 +921,7 @@ const Template21 = () => {
                               }}
                             >
                               <FaGithub color="#87CEEB" size="12" />{" "}
-                              {resumeData.github}
+                              <a href={resumeData.github} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{resumeData.github}</a>
                             </span>
                           )}
                           {resumeData.portfolio && (
@@ -933,7 +933,7 @@ const Template21 = () => {
                               }}
                             >
                               <FaGlobe color="#87CEEB" size="12" />{" "}
-                              {resumeData.portfolio}
+                              <a href={resumeData.portfolio} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{resumeData.portfolio}</a>
                             </span>
                           )}
                         </div>

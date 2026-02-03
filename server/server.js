@@ -1,3 +1,4 @@
+/* server/server.js */
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -5,6 +6,7 @@ const morgan = require("morgan");
 const path = require("path");
 const { connectToPostgreSQL } = require("./config/database");
 const { errorHandler } = require("./utils/errorHandler");
+const atsRoutes = require("./routes/atsRoutes");
 require("dotenv").config();
 
 const app = express();
@@ -17,7 +19,7 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(morgan("dev"));
 app.use(
   cors({
-    origin: "http://localhost:5180", // ✅ apna frontend port match karo
+    origin: "http://localhost:5180",
     credentials: true,
   })
 );
@@ -35,7 +37,9 @@ const resumeRoutes = require("./routes/resumeRoutes");
 app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/resumes", resumeRoutes);
-app.use("/api/enhance", geminiRoutes);
+// CHANGED: Mounted to /api/ai/enhance to fix the 404 error
+app.use("/api/ai/enhance", geminiRoutes); 
+app.use("/api/ats", atsRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

@@ -147,7 +147,7 @@ const Template23 = () => {
     <div style={{ minHeight: "100vh", backgroundColor: "#f9fafb" }}>
       <Navbar />
       <div style={{ display: "flex" }}>
-        <Sidebar onEnhance={() => {}} resumeRef={resumeRef} />
+        <Sidebar onEnhance={() => { }} resumeRef={resumeRef} />
         <div style={{ flexGrow: 1, padding: "2rem", display: "flex", justifyContent: "center" }}>
           <div style={{ width: "100%", maxWidth: "1000px" }}>
             <div
@@ -233,13 +233,13 @@ const Template23 = () => {
                           <MapPin size={14} /> {renderText(localData.location, (val) => handleFieldChange("location", val), false, "Location") || (!editMode ? null : <span style={{ color: "#9ca3af", fontStyle: "italic" }}>Location</span>)}
                         </p>
                         <p style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <Linkedin size={14} /> {renderText(localData.linkedin, (val) => handleFieldChange("linkedin", val), false, "LinkedIn") || (!editMode ? null : <span style={{ color: "#9ca3af", fontStyle: "italic" }}>LinkedIn</span>)}
+                          <Linkedin size={14} /> {editMode ? renderText(localData.linkedin, (val) => handleFieldChange("linkedin", val), false, "LinkedIn") : (localData.linkedin && <a href={localData.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{localData.linkedin}</a>)}
                         </p>
                         <p style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <Github size={14} /> {renderText(localData.github, (val) => handleFieldChange("github", val), false, "GitHub") || (!editMode ? null : <span style={{ color: "#9ca3af", fontStyle: "italic" }}>GitHub</span>)}
+                          <Github size={14} /> {editMode ? renderText(localData.github, (val) => handleFieldChange("github", val), false, "GitHub") : (localData.github && <a href={localData.github} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{localData.github}</a>)}
                         </p>
                         <p style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <Globe size={14} /> {renderText(localData.portfolio, (val) => handleFieldChange("portfolio", val), false, "Portfolio") || (!editMode ? null : <span style={{ color: "#9ca3af", fontStyle: "italic" }}>Portfolio</span>)}
+                          <Globe size={14} /> {editMode ? renderText(localData.portfolio, (val) => handleFieldChange("portfolio", val), false, "Portfolio") : (localData.portfolio && <a href={localData.portfolio} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{localData.portfolio}</a>)}
                         </p>
                       </div>
                     </div>

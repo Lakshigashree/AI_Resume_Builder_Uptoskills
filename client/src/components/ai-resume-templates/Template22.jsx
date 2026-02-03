@@ -575,7 +575,9 @@ const Template22 = () => {
                           style={{ width: "100%" }}
                         />
                       ) : (
-                        resumeData[field]
+                        ["linkedin", "github", "website", "portfolio"].includes(field) && resumeData[field] ?
+                          <a href={resumeData[field]} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{resumeData[field]}</a>
+                          : resumeData[field]
                       )}
                     </p>
                   ))}

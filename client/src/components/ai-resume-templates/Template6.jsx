@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useReactToPrint } from "react-to-print"; // Import this for PDF Download
 import Sidebar from "../Sidebar/Sidebar";
 import Navbar from "../Navbar/Navbar";
 import { useResume } from "../../context/ResumeContext";
@@ -7,6 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPhone, faEnvelope, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
 import { faLinkedin } from "@fortawesome/free-brands-svg-icons";
 import defaultProfile from "../../assets/images/profile.jpg";
+import { toast } from 'react-toastify'; // Import toast
 
 const Template6 = () => {
   const resumeRef = useRef(null);
@@ -34,18 +34,12 @@ const Template6 = () => {
   const colorInputRef = useRef(null);
   const photoInputRef = useRef(null);
 
-  // --- 3. DOWNLOAD PDF FUNCTION ---
-  const handleDownload = useReactToPrint({
-    content: () => resumeRef.current,
-    documentTitle: localData.name || "My_Resume",
-    onAfterPrint: () => console.log("Resume downloaded successfully"),
-  });
-
   // --- DATA CLEANING & INITIALIZATION ---
   const cleanData = (data) => {
     if (!data) return {};
     const cleaned = { ...data };
     
+    // 1. Remove placeholders
     const placeholders = [
       "Your Professional Domain",
       "Your professional summary will appear here",
@@ -56,16 +50,47 @@ const Template6 = () => {
 
     if (placeholders.includes(cleaned.role)) cleaned.role = "";
     if (placeholders.includes(cleaned.summary)) cleaned.summary = "";
+
+    // 2. NORMALIZE LANGUAGES
+    if (Array.isArray(cleaned.languages)) {
+      cleaned.languages = cleaned.languages.map(lang => {
+        if (typeof lang === 'string') {
+          return { language: lang, proficiency: 'Intermediate' };
+        }
+        return lang;
+      });
+    }
+
+    // 3. NORMALIZE ACHIEVEMENTS
+    if (Array.isArray(cleaned.achievements)) {
+      cleaned.achievements = cleaned.achievements.map(ach => {
+        if (typeof ach === 'string') {
+          return { keyAchievements: ach, describe: '' };
+        }
+        if (ach && (ach.title || ach.name) && !ach.keyAchievements) {
+          return {
+            ...ach,
+            keyAchievements: ach.title || ach.name,
+            describe: ach.description || ach.describe || ''
+          };
+        }
+        return ach;
+      });
+    }
+
+    // 4. NORMALIZE SKILLS
+    if (Array.isArray(cleaned.skills)) {
+      cleaned.skills = cleaned.skills.map(s => typeof s === 'object' ? (s.skill || s.name || '') : s).filter(Boolean);
+    }
     
     return cleaned;
   };
 
-  // --- 4. DATA SYNC FIX (Prevents overwriting while editing) ---
   useEffect(() => {
-    if (resumeData && !editMode) {
+    if (resumeData) {
       setLocalData(cleanData(resumeData));
     }
-  }, [resumeData, editMode]);
+  }, [resumeData]);
 
   // --- HELPER FUNCTIONS ---
 
@@ -144,10 +169,16 @@ const Template6 = () => {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+  try {
     setResumeData(localData);
+    localStorage.setItem("resumeData", JSON.stringify(localData));
     setEditMode(false);
-  };
+  } catch (error) {
+    console.error("Save error:", error);
+  }
+};
+
 
   const handleCancel = () => {
     setLocalData(cleanData(resumeData));
@@ -156,7 +187,6 @@ const Template6 = () => {
 
   const handleEnhance = (section) => {
     console.log("Enhancing", section);
-    // Ideally, trigger AI logic here if you want local updates
   };
 
   const handleOpenColorPicker = () => {
@@ -217,12 +247,8 @@ const Template6 = () => {
       )}
 
       <div style={{ display: "flex" }}>
-        {/* --- 5. CONNECT SIDEBAR DOWNLOAD --- */}
-        <Sidebar 
-            onEnhance={handleEnhance} 
-            resumeRef={resumeRef} 
-            onDownload={handleDownload} 
-        />
+        {/* Pass data to Sidebar safely */}
+        <Sidebar onEnhance={handleEnhance} resumeRef={resumeRef} />
 
         <div style={{ 
           flexGrow: 1, padding: "2.5rem", display: "flex", 
@@ -277,7 +303,6 @@ const Template6 = () => {
                 )}
               </div>
 
-              {/* ROLE */}
               <div style={{ color: "rgb(122, 122, 243)", fontSize: "1.25rem" }}>
                   {editMode ? (
                   <input

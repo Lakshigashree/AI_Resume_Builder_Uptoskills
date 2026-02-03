@@ -9,7 +9,7 @@ import {
   Linkedin,
   Github,
   Briefcase,
-  GraduationCap, 
+  GraduationCap,
   User,
   Award,
   Globe,
@@ -198,7 +198,7 @@ const Template13 = () => {
     setEditMode(false);
   };
 
-  const handleEnhance = () => {};
+  const handleEnhance = () => { };
 
   const handlePhotoChange = (e) => {
     const file = e.target.files && e.target.files[0];
@@ -500,7 +500,7 @@ const Template13 = () => {
                         placeholder="GitHub"
                       />
                     ) : (
-                      <span>{localData.github}</span>
+                      <a href={localData.github} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{localData.github}</a>
                     )}
                   </div>
                 )}
@@ -539,335 +539,335 @@ const Template13 = () => {
                 {(editMode ||
                   (localData.experience &&
                     localData.experience.length > 0)) && (
-                  <>
-                    <SectionHeading title="Experience" icon={Briefcase} />
-                    <div className="space-y-6 mb-8">
-                      {(localData.experience || []).map((exp, i) => (
-                        <div
-                          key={i}
-                          className="bg-gray-50 rounded-xl p-6 border-l-4 border-blue-600 relative"
-                        >
-                          {editMode && (
-                            <button
-                              onClick={() =>
-                                handleRemoveItem("experience", i)
-                              }
-                              className="absolute top-2 right-2 text-red-500"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
+                    <>
+                      <SectionHeading title="Experience" icon={Briefcase} />
+                      <div className="space-y-6 mb-8">
+                        {(localData.experience || []).map((exp, i) => (
+                          <div
+                            key={i}
+                            className="bg-gray-50 rounded-xl p-6 border-l-4 border-blue-600 relative"
+                          >
+                            {editMode && (
+                              <button
+                                onClick={() =>
+                                  handleRemoveItem("experience", i)
+                                }
+                                className="absolute top-2 right-2 text-red-500"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
 
-                          {editMode ? (
-                            <div className="space-y-3">
-                              <input
-                                type="text"
-                                value={exp.title}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "experience",
-                                    i,
-                                    "title",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full font-bold p-2 border rounded"
-                                placeholder="Job Title"
-                              />
-                              <input
-                                type="text"
-                                value={exp.companyName}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "experience",
-                                    i,
-                                    "companyName",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full p-2 border rounded"
-                                placeholder="Company"
-                              />
-                              <input
-                                type="text"
-                                value={exp.date}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "experience",
-                                    i,
-                                    "date",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full p-2 border rounded"
-                                placeholder="Date"
-                              />
-                              <textarea
-                                value={exp.accomplishment}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "experience",
-                                    i,
-                                    "accomplishment",
-                                    [e.target.value]
-                                  )
-                                }
-                                className="w-full p-2 border rounded"
-                                rows={3}
-                                placeholder="Description"
-                              />
-                            </div>
-                          ) : (
-                            <>
-                              <h3 className="text-xl font-bold text-gray-800 mb-1">
-                                {exp.title}
-                              </h3>
-                              <div className="flex items-center gap-4 mb-3">
-                                <span className="text-lg font-semibold text-blue-600">
-                                  {exp.companyName}
-                                </span>
-                                <span className="text-sm text-gray-500 flex items-center gap-1">
-                                  <Calendar className="w-4 h-4" />{" "}
-                                  {exp.date}
-                                </span>
+                            {editMode ? (
+                              <div className="space-y-3">
+                                <input
+                                  type="text"
+                                  value={exp.title}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "experience",
+                                      i,
+                                      "title",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full font-bold p-2 border rounded"
+                                  placeholder="Job Title"
+                                />
+                                <input
+                                  type="text"
+                                  value={exp.companyName}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "experience",
+                                      i,
+                                      "companyName",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full p-2 border rounded"
+                                  placeholder="Company"
+                                />
+                                <input
+                                  type="text"
+                                  value={exp.date}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "experience",
+                                      i,
+                                      "date",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full p-2 border rounded"
+                                  placeholder="Date"
+                                />
+                                <textarea
+                                  value={exp.accomplishment}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "experience",
+                                      i,
+                                      "accomplishment",
+                                      [e.target.value]
+                                    )
+                                  }
+                                  className="w-full p-2 border rounded"
+                                  rows={3}
+                                  placeholder="Description"
+                                />
                               </div>
-                              <p className="text-gray-700 leading-relaxed">
-                                {Array.isArray(exp.accomplishment)
-                                  ? exp.accomplishment[0]
-                                  : exp.accomplishment}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      ))}
+                            ) : (
+                              <>
+                                <h3 className="text-xl font-bold text-gray-800 mb-1">
+                                  {exp.title}
+                                </h3>
+                                <div className="flex items-center gap-4 mb-3">
+                                  <span className="text-lg font-semibold text-blue-600">
+                                    {exp.companyName}
+                                  </span>
+                                  <span className="text-sm text-gray-500 flex items-center gap-1">
+                                    <Calendar className="w-4 h-4" />{" "}
+                                    {exp.date}
+                                  </span>
+                                </div>
+                                <p className="text-gray-700 leading-relaxed">
+                                  {Array.isArray(exp.accomplishment)
+                                    ? exp.accomplishment[0]
+                                    : exp.accomplishment}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        ))}
 
-                      {editMode && (
-                        <button
-                          onClick={() =>
-                            handleAddItem("experience", {
-                              title: "New Role",
-                              companyName: "Company",
-                              date: "Date",
-                              accomplishment: ["Description"],
-                            })
-                          }
-                          className="flex items-center gap-2 text-blue-600 mt-2 font-medium"
-                        >
-                          <Plus size={16} /> Add Experience
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
+                        {editMode && (
+                          <button
+                            onClick={() =>
+                              handleAddItem("experience", {
+                                title: "New Role",
+                                companyName: "Company",
+                                date: "Date",
+                                accomplishment: ["Description"],
+                              })
+                            }
+                            className="flex items-center gap-2 text-blue-600 mt-2 font-medium"
+                          >
+                            <Plus size={16} /> Add Experience
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
 
                 {/* PROJECTS */}
                 {(editMode ||
                   (localData.projects &&
                     localData.projects.length > 0)) && (
-                  <>
-                    <SectionHeading title="Projects" icon={Code} />
-                    <div className="space-y-6 mb-8">
-                      {(localData.projects || []).map((proj, i) => (
-                        <div
-                          key={i}
-                          className="bg-gray-50 rounded-xl p-6 border-l-4 border-purple-600 relative"
-                        >
-                          {editMode && (
-                            <button
-                              onClick={() =>
-                                handleRemoveItem("projects", i)
-                              }
-                              className="absolute top-2 right-2 text-red-500"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-
-                          {editMode ? (
-                            <div className="space-y-3">
-                              <input
-                                type="text"
-                                value={proj.name}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "projects",
-                                    i,
-                                    "name",
-                                    e.target.value
-                                  )
+                    <>
+                      <SectionHeading title="Projects" icon={Code} />
+                      <div className="space-y-6 mb-8">
+                        {(localData.projects || []).map((proj, i) => (
+                          <div
+                            key={i}
+                            className="bg-gray-50 rounded-xl p-6 border-l-4 border-purple-600 relative"
+                          >
+                            {editMode && (
+                              <button
+                                onClick={() =>
+                                  handleRemoveItem("projects", i)
                                 }
-                                className="w-full font-bold p-2 border rounded"
-                                placeholder="Project Name"
-                              />
-                              <input
-                                type="text"
-                                value={proj.link}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "projects",
-                                    i,
-                                    "link",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full p-2 border rounded"
-                                placeholder="Link"
-                              />
-                              <textarea
-                                value={proj.description}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "projects",
-                                    i,
-                                    "description",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full p-2 border rounded"
-                                rows={3}
-                                placeholder="Description"
-                              />
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex justify-between items-center mb-2">
-                                <h3 className="text-xl font-bold text-gray-800">
-                                  {proj.name}
-                                </h3>
-                                {proj.link && (
-                                  <a
-                                    href={proj.link}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-blue-600 text-sm hover:underline flex items-center gap-1"
-                                  >
-                                    View <ExternalLink size={12} />
-                                  </a>
-                                )}
-                              </div>
-                              <p className="text-gray-700 leading-relaxed">
-                                {proj.description}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      ))}
+                                className="absolute top-2 right-2 text-red-500"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
 
-                      {editMode && (
-                        <button
-                          onClick={() =>
-                            handleAddItem("projects", {
-                              name: "New Project",
-                              link: "",
-                              description: "Description",
-                            })
-                          }
-                          className="flex items-center gap-2 text-blue-600 mt-2 font-medium"
-                        >
-                          <Plus size={16} /> Add Project
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {/* ACHIEVEMENTS */}
-                {(editMode ||
-                  (localData.achievements &&
-                    localData.achievements.length > 0)) && (
-                  <div>
-                    <SectionHeading title="Achievements" icon={Award} />
-                    <div className="space-y-4 mb-8">
-                      {(localData.achievements || []).map((ach, i) => (
-                        <div key={i} className="relative">
-                          {editMode && (
-                            <button
-                              onClick={() =>
-                                handleRemoveItem("achievements", i)
-                              }
-                              className="absolute top-0 right-0 text-red-500"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-
-                          {editMode ? (
-                            <div className="p-2 border rounded mb-2">
-                              <input
-                                type="text"
-                                value={
-                                  typeof ach === "string"
-                                    ? ach
-                                    : ach.title
-                                }
-                                onChange={(e) => {
-                                  const newArr = [
-                                    ...localData.achievements,
-                                  ];
-                                  if (typeof ach === "string")
-                                    newArr[i] = e.target.value;
-                                  else
-                                    newArr[i] = {
-                                      ...ach,
-                                      title: e.target.value,
-                                    };
-
-                                  setLocalData({
-                                    ...localData,
-                                    achievements: newArr,
-                                  });
-                                }}
-                                className="w-full p-1 border-b mb-1 font-bold"
-                              />
-                              {typeof ach === "object" && (
+                            {editMode ? (
+                              <div className="space-y-3">
                                 <input
                                   type="text"
-                                  value={ach.description}
+                                  value={proj.name}
                                   onChange={(e) =>
                                     handleNestedChange(
-                                      "achievements",
+                                      "projects",
+                                      i,
+                                      "name",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full font-bold p-2 border rounded"
+                                  placeholder="Project Name"
+                                />
+                                <input
+                                  type="text"
+                                  value={proj.link}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "projects",
+                                      i,
+                                      "link",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full p-2 border rounded"
+                                  placeholder="Link"
+                                />
+                                <textarea
+                                  value={proj.description}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "projects",
                                       i,
                                       "description",
                                       e.target.value
                                     )
                                   }
-                                  className="w-full p-1 text-sm"
+                                  className="w-full p-2 border rounded"
+                                  rows={3}
+                                  placeholder="Description"
                                 />
-                              )}
-                            </div>
-                          ) : (
-                            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-                              <h4 className="font-bold text-gray-800">
-                                {typeof ach === "string"
-                                  ? ach
-                                  : ach.title}
-                              </h4>
-                              {typeof ach === "object" && (
-                                <p className="text-sm text-gray-600">
-                                  {ach.description}
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex justify-between items-center mb-2">
+                                  <h3 className="text-xl font-bold text-gray-800">
+                                    {proj.name}
+                                  </h3>
+                                  {proj.link && (
+                                    <a
+                                      href={proj.link}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-blue-600 text-sm hover:underline flex items-center gap-1"
+                                    >
+                                      View <ExternalLink size={12} />
+                                    </a>
+                                  )}
+                                </div>
+                                <p className="text-gray-700 leading-relaxed">
+                                  {proj.description}
                                 </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                              </>
+                            )}
+                          </div>
+                        ))}
 
-                      {editMode && (
-                        <button
-                          onClick={() =>
-                            handleAddItem("achievements", {
-                              title: "Achievement",
-                              description: "Details",
-                            })
-                          }
-                          className="flex items-center gap-2 text-blue-600 mt-2 font-medium"
-                        >
-                          <Plus size={16} /> Add Achievement
-                        </button>
-                      )}
+                        {editMode && (
+                          <button
+                            onClick={() =>
+                              handleAddItem("projects", {
+                                name: "New Project",
+                                link: "",
+                                description: "Description",
+                              })
+                            }
+                            className="flex items-center gap-2 text-blue-600 mt-2 font-medium"
+                          >
+                            <Plus size={16} /> Add Project
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                {/* ACHIEVEMENTS */}
+                {(editMode ||
+                  (localData.achievements &&
+                    localData.achievements.length > 0)) && (
+                    <div>
+                      <SectionHeading title="Achievements" icon={Award} />
+                      <div className="space-y-4 mb-8">
+                        {(localData.achievements || []).map((ach, i) => (
+                          <div key={i} className="relative">
+                            {editMode && (
+                              <button
+                                onClick={() =>
+                                  handleRemoveItem("achievements", i)
+                                }
+                                className="absolute top-0 right-0 text-red-500"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+
+                            {editMode ? (
+                              <div className="p-2 border rounded mb-2">
+                                <input
+                                  type="text"
+                                  value={
+                                    typeof ach === "string"
+                                      ? ach
+                                      : ach.title
+                                  }
+                                  onChange={(e) => {
+                                    const newArr = [
+                                      ...localData.achievements,
+                                    ];
+                                    if (typeof ach === "string")
+                                      newArr[i] = e.target.value;
+                                    else
+                                      newArr[i] = {
+                                        ...ach,
+                                        title: e.target.value,
+                                      };
+
+                                    setLocalData({
+                                      ...localData,
+                                      achievements: newArr,
+                                    });
+                                  }}
+                                  className="w-full p-1 border-b mb-1 font-bold"
+                                />
+                                {typeof ach === "object" && (
+                                  <input
+                                    type="text"
+                                    value={ach.description}
+                                    onChange={(e) =>
+                                      handleNestedChange(
+                                        "achievements",
+                                        i,
+                                        "description",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full p-1 text-sm"
+                                  />
+                                )}
+                              </div>
+                            ) : (
+                              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                                <h4 className="font-bold text-gray-800">
+                                  {typeof ach === "string"
+                                    ? ach
+                                    : ach.title}
+                                </h4>
+                                {typeof ach === "object" && (
+                                  <p className="text-sm text-gray-600">
+                                    {ach.description}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        {editMode && (
+                          <button
+                            onClick={() =>
+                              handleAddItem("achievements", {
+                                title: "Achievement",
+                                description: "Details",
+                              })
+                            }
+                            className="flex items-center gap-2 text-blue-600 mt-2 font-medium"
+                          >
+                            <Plus size={16} /> Add Achievement
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
 
               {/* RIGHT COLUMN */}
@@ -876,392 +876,392 @@ const Template13 = () => {
                 {(editMode ||
                   (localData.education &&
                     localData.education.length > 0)) && (
-                  <div>
-                    <SectionHeading
-                      title="Education"
-                      icon={GraduationCap}
-                    />
-                    <div className="space-y-4 mb-8">
-                      {(localData.education || []).map((edu, i) => (
-                        <div
-                          key={i}
-                          className="bg-white rounded-xl p-4 shadow-sm relative"
-                        >
-                          {editMode && (
-                            <button
-                              onClick={() =>
-                                handleRemoveItem("education", i)
-                              }
-                              className="absolute top-2 right-2 text-red-500"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
+                    <div>
+                      <SectionHeading
+                        title="Education"
+                        icon={GraduationCap}
+                      />
+                      <div className="space-y-4 mb-8">
+                        {(localData.education || []).map((edu, i) => (
+                          <div
+                            key={i}
+                            className="bg-white rounded-xl p-4 shadow-sm relative"
+                          >
+                            {editMode && (
+                              <button
+                                onClick={() =>
+                                  handleRemoveItem("education", i)
+                                }
+                                className="absolute top-2 right-2 text-red-500"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
 
-                          {editMode ? (
-                            <div className="space-y-2">
-                              <input
-                                type="text"
-                                value={edu.degree}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "education",
-                                    i,
-                                    "degree",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full font-bold p-1 border rounded"
-                                placeholder="Degree"
-                              />
-                              <input
-                                type="text"
-                                value={edu.institution}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "education",
-                                    i,
-                                    "institution",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full p-1 border rounded"
-                                placeholder="Institution"
-                              />
-                              <input
-                                type="text"
-                                value={edu.duration}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "education",
-                                    i,
-                                    "duration",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full p-1 border rounded"
-                                placeholder="Year"
-                              />
-                            </div>
-                          ) : (
-                            <>
-                              <h3 className="text-lg font-bold text-gray-800">
-                                {edu.degree}
-                              </h3>
-                              <p className="text-blue-600 font-semibold">
-                                {edu.institution}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                {edu.duration}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      ))}
+                            {editMode ? (
+                              <div className="space-y-2">
+                                <input
+                                  type="text"
+                                  value={edu.degree}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "education",
+                                      i,
+                                      "degree",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full font-bold p-1 border rounded"
+                                  placeholder="Degree"
+                                />
+                                <input
+                                  type="text"
+                                  value={edu.institution}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "education",
+                                      i,
+                                      "institution",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full p-1 border rounded"
+                                  placeholder="Institution"
+                                />
+                                <input
+                                  type="text"
+                                  value={edu.duration}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "education",
+                                      i,
+                                      "duration",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full p-1 border rounded"
+                                  placeholder="Year"
+                                />
+                              </div>
+                            ) : (
+                              <>
+                                <h3 className="text-lg font-bold text-gray-800">
+                                  {edu.degree}
+                                </h3>
+                                <p className="text-blue-600 font-semibold">
+                                  {edu.institution}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {edu.duration}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        ))}
 
-                      {editMode && (
-                        <button
-                          onClick={() =>
-                            handleAddItem("education", {
-                              degree: "Degree",
-                              institution: "University",
-                              duration: "Year",
-                            })
-                          }
-                          className="flex items-center gap-2 text-blue-600 mt-2 text-sm font-medium"
-                        >
-                          <Plus size={14} /> Add
-                        </button>
-                      )}
+                        {editMode && (
+                          <button
+                            onClick={() =>
+                              handleAddItem("education", {
+                                degree: "Degree",
+                                institution: "University",
+                                duration: "Year",
+                              })
+                            }
+                            className="flex items-center gap-2 text-blue-600 mt-2 text-sm font-medium"
+                          >
+                            <Plus size={14} /> Add
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* CERTIFICATIONS */}
                 {(editMode ||
                   (localData.certifications &&
                     localData.certifications.length > 0)) && (
-                  <div>
-                    <SectionHeading
-                      title="Certifications"
-                      icon={Scroll}
-                    />
-                    <div className="space-y-4 mb-8">
-                      {(localData.certifications || []).map((cert, i) => (
-                        <div
-                          key={i}
-                          className="bg-white rounded-xl p-4 shadow-sm relative"
-                        >
-                          {editMode && (
-                            <button
-                              onClick={() =>
-                                handleRemoveItem("certifications", i)
-                              }
-                              className="absolute top-1 right-1 text-red-500"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
+                    <div>
+                      <SectionHeading
+                        title="Certifications"
+                        icon={Scroll}
+                      />
+                      <div className="space-y-4 mb-8">
+                        {(localData.certifications || []).map((cert, i) => (
+                          <div
+                            key={i}
+                            className="bg-white rounded-xl p-4 shadow-sm relative"
+                          >
+                            {editMode && (
+                              <button
+                                onClick={() =>
+                                  handleRemoveItem("certifications", i)
+                                }
+                                className="absolute top-1 right-1 text-red-500"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
 
-                          {editMode ? (
-                            <div className="space-y-2">
-                              <input
-                                type="text"
-                                value={cert.title}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "certifications",
-                                    i,
-                                    "title",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full font-bold p-1 border rounded"
-                                placeholder="Title"
-                              />
-                              <input
-                                type="text"
-                                value={cert.issuer}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "certifications",
-                                    i,
-                                    "issuer",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full p-1 border rounded"
-                                placeholder="Issuer"
-                              />
-                              <input
-                                type="text"
-                                value={cert.date}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "certifications",
-                                    i,
-                                    "date",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full p-1 border rounded"
-                                placeholder="Date"
-                              />
-                            </div>
-                          ) : (
-                            <>
-                              <h3 className="text-md font-bold text-gray-800">
-                                {cert.title}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                {cert.issuer} | {cert.date}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      ))}
+                            {editMode ? (
+                              <div className="space-y-2">
+                                <input
+                                  type="text"
+                                  value={cert.title}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "certifications",
+                                      i,
+                                      "title",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full font-bold p-1 border rounded"
+                                  placeholder="Title"
+                                />
+                                <input
+                                  type="text"
+                                  value={cert.issuer}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "certifications",
+                                      i,
+                                      "issuer",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full p-1 border rounded"
+                                  placeholder="Issuer"
+                                />
+                                <input
+                                  type="text"
+                                  value={cert.date}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "certifications",
+                                      i,
+                                      "date",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full p-1 border rounded"
+                                  placeholder="Date"
+                                />
+                              </div>
+                            ) : (
+                              <>
+                                <h3 className="text-md font-bold text-gray-800">
+                                  {cert.title}
+                                </h3>
+                                <p className="text-sm text-gray-600">
+                                  {cert.issuer} | {cert.date}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        ))}
 
-                      {editMode && (
-                        <button
-                          onClick={() =>
-                            handleAddItem("certifications", {
-                              title: "Certificate",
-                              issuer: "Issuer",
-                              date: "Date",
-                            })
-                          }
-                          className="flex items-center gap-2 text-blue-600 mt-2 text-sm font-medium"
-                        >
-                          <Plus size={14} /> Add
-                        </button>
-                      )}
+                        {editMode && (
+                          <button
+                            onClick={() =>
+                              handleAddItem("certifications", {
+                                title: "Certificate",
+                                issuer: "Issuer",
+                                date: "Date",
+                              })
+                            }
+                            className="flex items-center gap-2 text-blue-600 mt-2 text-sm font-medium"
+                          >
+                            <Plus size={14} /> Add
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* COURSES */}
                 {(editMode ||
                   (localData.courses &&
                     localData.courses.length > 0)) && (
-                  <div>
-                    <SectionHeading title="Courses" icon={BookOpen} />
-                    <div className="space-y-4 mb-8">
-                      {(localData.courses || []).map((course, i) => (
-                        <div
-                          key={i}
-                          className="bg-white rounded-xl p-4 shadow-sm relative"
-                        >
-                          {editMode && (
-                            <button
-                              onClick={() =>
-                                handleRemoveItem("courses", i)
-                              }
-                              className="absolute top-1 right-1 text-red-500"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-
-                          {editMode ? (
-                            <div className="space-y-2">
-                              <input
-                                type="text"
-                                value={course.title}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "courses",
-                                    i,
-                                    "title",
-                                    e.target.value
-                                  )
+                    <div>
+                      <SectionHeading title="Courses" icon={BookOpen} />
+                      <div className="space-y-4 mb-8">
+                        {(localData.courses || []).map((course, i) => (
+                          <div
+                            key={i}
+                            className="bg-white rounded-xl p-4 shadow-sm relative"
+                          >
+                            {editMode && (
+                              <button
+                                onClick={() =>
+                                  handleRemoveItem("courses", i)
                                 }
-                                className="w-full font-bold p-1 border rounded"
-                                placeholder="Course Name"
-                              />
-                              <input
-                                type="text"
-                                value={course.description}
-                                onChange={(e) =>
-                                  handleNestedChange(
-                                    "courses",
-                                    i,
-                                    "description",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full p-1 border rounded"
-                                placeholder="Provider/Details"
-                              />
-                            </div>
-                          ) : (
-                            <>
-                              <h3 className="text-md font-bold text-gray-800">
-                                {course.title}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                {course.description}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      ))}
+                                className="absolute top-1 right-1 text-red-500"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
 
-                      {editMode && (
-                        <button
-                          onClick={() =>
-                            handleAddItem("courses", {
-                              title: "Course Name",
-                              description: "Provider",
-                            })
-                          }
-                          className="flex items-center gap-1 text-blue-600 text-xs font-bold mt-2"
-                        >
-                          <Plus size={14} /> Add
-                        </button>
-                      )}
+                            {editMode ? (
+                              <div className="space-y-2">
+                                <input
+                                  type="text"
+                                  value={course.title}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "courses",
+                                      i,
+                                      "title",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full font-bold p-1 border rounded"
+                                  placeholder="Course Name"
+                                />
+                                <input
+                                  type="text"
+                                  value={course.description}
+                                  onChange={(e) =>
+                                    handleNestedChange(
+                                      "courses",
+                                      i,
+                                      "description",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full p-1 border rounded"
+                                  placeholder="Provider/Details"
+                                />
+                              </div>
+                            ) : (
+                              <>
+                                <h3 className="text-md font-bold text-gray-800">
+                                  {course.title}
+                                </h3>
+                                <p className="text-sm text-gray-600">
+                                  {course.description}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        ))}
+
+                        {editMode && (
+                          <button
+                            onClick={() =>
+                              handleAddItem("courses", {
+                                title: "Course Name",
+                                description: "Provider",
+                              })
+                            }
+                            className="flex items-center gap-1 text-blue-600 text-xs font-bold mt-2"
+                          >
+                            <Plus size={14} /> Add
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* SKILLS */}
                 {(editMode ||
                   (localData.skills &&
                     localData.skills.length > 0)) && (
-                  <div>
-                    <SectionHeading title="Skills" icon={Award} />
-                    <div className="bg-white rounded-xl p-4 shadow-sm mb-8">
-                      {editMode ? (
-                        <ChipInput
-                          chips={localData.skills || []}
-                          onChange={(newChips) =>
-                            handleFieldChange("skills", newChips)
-                          }
-                          placeholder="Type a skill and press Enter or Comma"
-                        />
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          {(resumeData.skills || []).map((skill, i) => (
-                            <span
-                              key={i}
-                              className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium"
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                    <div>
+                      <SectionHeading title="Skills" icon={Award} />
+                      <div className="bg-white rounded-xl p-4 shadow-sm mb-8">
+                        {editMode ? (
+                          <ChipInput
+                            chips={localData.skills || []}
+                            onChange={(newChips) =>
+                              handleFieldChange("skills", newChips)
+                            }
+                            placeholder="Type a skill and press Enter or Comma"
+                          />
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {(resumeData.skills || []).map((skill, i) => (
+                              <span
+                                key={i}
+                                className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* LANGUAGES */}
                 {(editMode ||
                   (localData.languages &&
                     localData.languages.length > 0)) && (
-                  <div>
-                    <SectionHeading title="Languages" icon={Globe} />
-                    <div className="bg-white rounded-xl p-4 shadow-sm mb-8">
-                      {editMode ? (
-                        <ChipInput
-                          chips={localData.languages || []}
-                          onChange={(newChips) =>
-                            handleFieldChange("languages", newChips)
-                          }
-                          placeholder="Type a language and press Enter or Comma"
-                        />
-                      ) : (
-                        <div className="space-y-2">
-                          {(resumeData.languages || []).map(
-                            (lang, i) => (
-                              <div
-                                key={i}
-                                className="flex items-center gap-2"
-                              >
-                                <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                                <span className="text-gray-700">
-                                  {lang}
-                                </span>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      )}
+                    <div>
+                      <SectionHeading title="Languages" icon={Globe} />
+                      <div className="bg-white rounded-xl p-4 shadow-sm mb-8">
+                        {editMode ? (
+                          <ChipInput
+                            chips={localData.languages || []}
+                            onChange={(newChips) =>
+                              handleFieldChange("languages", newChips)
+                            }
+                            placeholder="Type a language and press Enter or Comma"
+                          />
+                        ) : (
+                          <div className="space-y-2">
+                            {(resumeData.languages || []).map(
+                              (lang, i) => (
+                                <div
+                                  key={i}
+                                  className="flex items-center gap-2"
+                                >
+                                  <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                                  <span className="text-gray-700">
+                                    {lang}
+                                  </span>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* INTERESTS */}
                 {(editMode ||
                   (localData.interests &&
                     localData.interests.length > 0)) && (
-                  <div>
-                    <SectionHeading title="Interests" icon={Heart} />
-                    <div className="bg-white rounded-xl p-4 shadow-sm mb-8">
-                      {editMode ? (
-                        <ChipInput
-                          chips={localData.interests || []}
-                          onChange={(newChips) =>
-                            handleFieldChange("interests", newChips)
-                          }
-                          placeholder="Type an interest and press Enter or Comma"
-                        />
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          {(resumeData.interests || []).map(
-                            (interest, i) => (
-                              <span
-                                key={i}
-                                className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium"
-                              >
-                                {interest}
-                              </span>
-                            )
-                          )}
-                        </div>
-                      )}
+                    <div>
+                      <SectionHeading title="Interests" icon={Heart} />
+                      <div className="bg-white rounded-xl p-4 shadow-sm mb-8">
+                        {editMode ? (
+                          <ChipInput
+                            chips={localData.interests || []}
+                            onChange={(newChips) =>
+                              handleFieldChange("interests", newChips)
+                            }
+                            placeholder="Type an interest and press Enter or Comma"
+                          />
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {(resumeData.interests || []).map(
+                              (interest, i) => (
+                                <span
+                                  key={i}
+                                  className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium"
+                                >
+                                  {interest}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
             </div>
           </div>

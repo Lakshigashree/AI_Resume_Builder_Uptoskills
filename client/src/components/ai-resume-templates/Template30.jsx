@@ -25,7 +25,7 @@ const Template30 = () => {
   const [localData, setLocalData] = useState(resumeData);
 
   // --- Constants for Enhanced Styling (Deep Teal/Navy) ---
-  const ACCENT_COLOR = "#004d40"; 
+  const ACCENT_COLOR = "#004d40";
   const PRIMARY_TEXT_COLOR = "#343a40";
   const LIGHT_BACKGROUND = "#f4f7f6";
   const SECTION_HEADER_BG = "#eaf3f2";
@@ -113,7 +113,7 @@ const Template30 = () => {
     marginRight: "0.5rem",
     verticalAlign: "middle",
   };
-  
+
   const renderArrayItem = (item, sectionKey) => {
     // Case 1: Item is a simple string (e.g., skills, languages)
     if (typeof item === "string") {
@@ -141,26 +141,26 @@ const Template30 = () => {
       const secondaryDetail = item.company || item.institution || item.client;
       const tertiaryDetail = item.duration || item.date;
       const description = item.description || item.details;
-      
+
       const detailsArray = [secondaryDetail, tertiaryDetail].filter(Boolean);
 
       return (
         <div key={title} style={{ marginBottom: "1.5rem", borderLeft: `2px solid ${SECTION_HEADER_BG}`, paddingLeft: "1rem" }}>
-          <h4 style={{ 
-            margin: 0, 
-            fontSize: "1.1rem", 
-            fontWeight: "700", 
-            color: ACCENT_COLOR, 
-            fontFamily: FONT_HEADER 
+          <h4 style={{
+            margin: 0,
+            fontSize: "1.1rem",
+            fontWeight: "700",
+            color: ACCENT_COLOR,
+            fontFamily: FONT_HEADER
           }}>
             {title}
           </h4>
-          
-          <p style={{ 
-            margin: "0.2rem 0 0.5rem 0", 
-            fontSize: "0.95rem", 
-            color: PRIMARY_TEXT_COLOR, 
-            fontWeight: "500" 
+
+          <p style={{
+            margin: "0.2rem 0 0.5rem 0",
+            fontSize: "0.95rem",
+            color: PRIMARY_TEXT_COLOR,
+            fontWeight: "500"
           }}>
             {detailsArray.join(" | ")}
           </p>
@@ -168,17 +168,17 @@ const Template30 = () => {
           {/* Rendering the description/details */}
           {description && (
             <ul style={{ paddingLeft: "1rem", lineHeight: "1.6", margin: 0, fontSize: "0.9rem" }}>
-                {/* Check if description is an array of bullet points or a single string */}
-                {Array.isArray(description) ? (
-                    description.map((bullet, i) => (
-                        <li key={i} style={{ position: "relative", paddingLeft: "1rem", marginBottom: "0.2rem" }}>
-                             <span style={{ position: "absolute", left: "0", color: ACCENT_COLOR, fontSize: "0.8rem", lineHeight: "1.2" }}>&ndash;</span>
-                             {bullet}
-                        </li>
-                    ))
-                ) : (
-                    <p style={{ margin: 0 }}>{description}</p>
-                )}
+              {/* Check if description is an array of bullet points or a single string */}
+              {Array.isArray(description) ? (
+                description.map((bullet, i) => (
+                  <li key={i} style={{ position: "relative", paddingLeft: "1rem", marginBottom: "0.2rem" }}>
+                    <span style={{ position: "absolute", left: "0", color: ACCENT_COLOR, fontSize: "0.8rem", lineHeight: "1.2" }}>&ndash;</span>
+                    {bullet}
+                  </li>
+                ))
+              ) : (
+                <p style={{ margin: 0 }}>{description}</p>
+              )}
             </ul>
           )}
         </div>
@@ -206,7 +206,7 @@ const Template30 = () => {
               backgroundColor: "#ffffff",
               width: "100%",
               maxWidth: "750px", // REDUCED MAX WIDTH
-              padding: "4rem", 
+              padding: "4rem",
               borderRadius: "16px",
               border: "1px solid #e0e0e0",
               boxShadow: "0px 10px 30px rgba(0,0,0,0.1)",
@@ -321,6 +321,8 @@ const Template30 = () => {
                     <Globe size={16} style={contactIconStyle} />{" "}
                     <a
                       href={resumeData.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       style={{ color: ACCENT_COLOR, textDecoration: "none", fontWeight: "600" }}
                     >
                       LinkedIn
@@ -332,6 +334,8 @@ const Template30 = () => {
                     <Globe size={16} style={contactIconStyle} />{" "}
                     <a
                       href={resumeData.github}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       style={{ color: ACCENT_COLOR, textDecoration: "none", fontWeight: "600" }}
                     >
                       GitHub
@@ -343,6 +347,8 @@ const Template30 = () => {
                     <Globe size={16} style={contactIconStyle} />{" "}
                     <a
                       href={resumeData.portfolio}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       style={{ color: ACCENT_COLOR, textDecoration: "none", fontWeight: "600" }}
                     >
                       Portfolio

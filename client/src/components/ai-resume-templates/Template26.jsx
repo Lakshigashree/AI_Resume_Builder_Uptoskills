@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import Sidebar from "../Sidebar/Sidebar";
 import Navbar from "../Navbar/Navbar";
 import { useResume } from "../../context/ResumeContext";
-import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaGlobe } from "react-icons/fa";
+import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaGlobe, FaGithub } from "react-icons/fa";
 
 const TemplateY = () => {
   const resumeRef = useRef(null);
@@ -83,37 +83,37 @@ const TemplateY = () => {
   return (
     <>
       <div style={{ minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      <Navbar />
-      <div style={{ display: "flex" }}>
-        <Sidebar onEnhance={() => {}} resumeRef={resumeRef} />
-        <div
-          style={{
-            flexGrow: 1,
-            padding: "2rem",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-          }}
-        >
+        <Navbar />
+        <div style={{ display: "flex" }}>
+          <Sidebar onEnhance={() => { }} resumeRef={resumeRef} />
           <div
-            ref={resumeRef}
-            className="resume-page"
             style={{
-              maxWidth: "793px", // A4 width
-              width: "100%",
-              minHeight: "1123px", // A4 height
-              padding: "1.5rem",
-              backgroundColor: "#ffffff",
-              color: "#000000", // Black text like the image
-              boxSizing: "border-box",
-              pageBreakAfter: "always",
-              pageBreakInside: "avoid",
-              overflow: "hidden", // Prevent content overflow
-              border: "none", // No border
+              flexGrow: 1,
+              padding: "2rem",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
             }}
           >
-              
+            <div
+              ref={resumeRef}
+              className="resume-page"
+              style={{
+                maxWidth: "793px", // A4 width
+                width: "100%",
+                minHeight: "1123px", // A4 height
+                padding: "1.5rem",
+                backgroundColor: "#ffffff",
+                color: "#000000", // Black text like the image
+                boxSizing: "border-box",
+                pageBreakAfter: "always",
+                pageBreakInside: "avoid",
+                overflow: "hidden", // Prevent content overflow
+                border: "none", // No border
+              }}
+            >
+
               {/* Header */}
               <div
                 style={{
@@ -134,16 +134,16 @@ const TemplateY = () => {
                     <input
                       type="text"
                       value={localData.role}
-                        onChange={e => handleFieldChange("role", e.target.value)}
-                        style={{
-                          fontSize: "1.1rem",
-                          color: "#000000",
-                          textAlign: "center",
-                          width: "100%",
-                          border: "none",
-                          background: "transparent",
-                          marginBottom: "0.5rem",
-                        }}
+                      onChange={e => handleFieldChange("role", e.target.value)}
+                      style={{
+                        fontSize: "1.1rem",
+                        color: "#000000",
+                        textAlign: "center",
+                        width: "100%",
+                        border: "none",
+                        background: "transparent",
+                        marginBottom: "0.5rem",
+                      }}
                     />
                   </>
                 ) : (
@@ -184,71 +184,85 @@ const TemplateY = () => {
                     <div style={{ color: "#334155", fontSize: "1rem", marginTop: "8px" }}>
                       {editMode ? (
                         <>
-                        <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                             <FaPhoneAlt color="#87CEEB" size="12" />
-                          <input
-                            type="text"
-                            value={localData.contact?.phone || ""}
-                            onChange={e => handleFieldChange("contact", { ...localData.contact, phone: e.target.value })}
-                            placeholder="Phone"
-                            style={{ marginBottom: "8px", width: "100%" }}
-                          />
+                          <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                            <FaPhoneAlt color="#87CEEB" size="12" />
+                            <input
+                              type="text"
+                              value={localData.contact?.phone || ""}
+                              onChange={e => handleFieldChange("contact", { ...localData.contact, phone: e.target.value })}
+                              placeholder="Phone"
+                              style={{ marginBottom: "8px", width: "100%" }}
+                            />
                           </span>
                           <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                             <FaEnvelope color="#87CEEB" size="12" />
-                          <input
-                            type="text"
-                            value={localData.contact?.email || ""}
-                            onChange={e => handleFieldChange("contact", { ...localData.contact, email: e.target.value })}
-                            placeholder="Email"
-                            style={{ marginBottom: "8px", width: "100%" }}
-                          />
+                            <FaEnvelope color="#87CEEB" size="12" />
+                            <input
+                              type="text"
+                              value={localData.contact?.email || ""}
+                              onChange={e => handleFieldChange("contact", { ...localData.contact, email: e.target.value })}
+                              placeholder="Email"
+                              style={{ marginBottom: "8px", width: "100%" }}
+                            />
                           </span>
                           <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                              <FaMapMarkerAlt color="#87CEEB" size="12" />
-                          <input
-                            type="text"
-                            value={localData.contact?.address || ""}
-                            onChange={e => handleFieldChange("contact", { ...localData.contact, address: e.target.value })}
-                            placeholder="Address"
-                            style={{ marginBottom: "8px", width: "100%" }}
-                          />
+                            <FaMapMarkerAlt color="#87CEEB" size="12" />
+                            <input
+                              type="text"
+                              value={localData.contact?.address || ""}
+                              onChange={e => handleFieldChange("contact", { ...localData.contact, address: e.target.value })}
+                              placeholder="Address"
+                              style={{ marginBottom: "8px", width: "100%" }}
+                            />
                           </span>
                           <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                              <FaGlobe color="#87CEEB" size="12" />
-                          <input
-                            type="text"
-                            value={localData.contact?.website || ""}
-                            onChange={e => handleFieldChange("contact", { ...localData.contact, website: e.target.value })}
-                            placeholder="Website"
-                            style={{ marginBottom: "8px", width: "100%" }}
-                          />
+                            <FaGlobe color="#87CEEB" size="12" />
+                            <input
+                              type="text"
+                              value={localData.contact?.website || ""}
+                              onChange={e => handleFieldChange("contact", { ...localData.contact, website: e.target.value })}
+                              placeholder="Website"
+                              style={{ marginBottom: "8px", width: "100%" }}
+                            />
+                          </span>
+                          <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                            <FaGithub color="#87CEEB" size="12" />
+                            <input
+                              type="text"
+                              value={localData.contact?.github || ""}
+                              onChange={e => handleFieldChange("contact", { ...localData.contact, github: e.target.value })}
+                              placeholder="GitHub"
+                              style={{ marginBottom: "8px", width: "100%" }}
+                            />
                           </span>
                         </>
                       ) : (
-                       // ...inside your Contact section, replace the view mode code with:
-<>
-  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "8px" }}>
-    <FaPhoneAlt color="#87CEEB" size="12" />
-    <span>{resumeData.contact?.phone || "123-456-7890"}</span>
-  </div>
-  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "8px" }}>
-    <FaEnvelope color="#87CEEB" size="12" />
-    <span>{resumeData.contact?.email || "john.doe@email.com"}</span>
-  </div>
-  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "8px" }}>
-    <FaMapMarkerAlt color="#87CEEB" size="12" />
-    <span>{resumeData.contact?.address || "123 Main St, City"}</span>
-  </div>
-  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "8px" }}>
-    <FaGlobe color="#87CEEB" size="12" />
-    <span>{resumeData.contact?.website || "www.johndoe.com"}</span>
-  </div>
-</>
-    )}
-  </div>
-</div>
-                  <hr style={horizontalLineStyle}/>
+                        // ...inside your Contact section, replace the view mode code with:
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "8px" }}>
+                            <FaPhoneAlt color="#87CEEB" size="12" />
+                            <span>{resumeData.contact?.phone || "123-456-7890"}</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "8px" }}>
+                            <FaEnvelope color="#87CEEB" size="12" />
+                            <span>{resumeData.contact?.email || "john.doe@email.com"}</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "8px" }}>
+                            <FaMapMarkerAlt color="#87CEEB" size="12" />
+                            <span>{resumeData.contact?.address || "123 Main St, City"}</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "8px" }}>
+                            <FaGlobe color="#87CEEB" size="12" />
+                            <a href={resumeData.contact?.website || "#"} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{resumeData.contact?.website || "www.johndoe.com"}</a>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "8px" }}>
+                            <FaGithub color="#87CEEB" size="12" />
+                            <a href={resumeData.contact?.github || "#"} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{resumeData.contact?.github || "github.com/johndoe"}</a>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <hr style={horizontalLineStyle} />
                   {/* Education */}
                   <div>
                     <div style={sectionTitleStyle}>Education</div>
@@ -339,7 +353,7 @@ const TemplateY = () => {
                       )}
                     </div>
                   </div>
-                  <hr style={horizontalLineStyle}/>
+                  <hr style={horizontalLineStyle} />
                   {/* Skills */}
                   <div>
                     <div style={sectionTitleStyle}>Skills</div>
@@ -416,7 +430,7 @@ const TemplateY = () => {
                       </ul>
                     )}
                   </div>
-                  <hr style={horizontalLineStyle}/>
+                  <hr style={horizontalLineStyle} />
                   {/* Languages */}
                   <div>
                     <div style={sectionTitleStyle}>Languages</div>
@@ -518,7 +532,7 @@ const TemplateY = () => {
                       )}
                     </div>
                   </div>
-                  <hr style={horizontalLineStyle}/>
+                  <hr style={horizontalLineStyle} />
                   {/* Work Experience */}
                   <div>
                     <div style={sectionTitleStyle}>Work Experience</div>

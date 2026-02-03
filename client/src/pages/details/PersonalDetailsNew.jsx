@@ -9,7 +9,8 @@ const PersonalDetails = () => {
   const { templateId, buildType } = location.state || {};
   const { resumeData, updateResumeData } = useContext(ResumeContext);
 
-  // Individual useState hooks to prevent overwriting issues
+  // Individual states to ensure precise data handling
+  const [errors, setErrors] = useState({});
   const [name, setName] = useState(resumeData?.name || '');
   const [role, setRole] = useState(resumeData?.role || '');
   const [email, setEmail] = useState(resumeData?.email || '');
@@ -20,7 +21,36 @@ const PersonalDetails = () => {
   const [portfolio, setPortfolio] = useState(resumeData?.portfolio || '');
   const [summary, setSummary] = useState(resumeData?.summary || '');
 
+  const validateFields = () => {
+    const newErrors = {};
+
+    // 1. Name and Role Validation
+    if (!name.trim()) newErrors.name = "Full name is required";
+    if (!role.trim()) newErrors.role = "Job title is required";
+
+    // 2. Email Validation (Regex)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    // 3. Phone Validation (10 Digits)
+    const phoneDigits = phone.replace(/\D/g, ''); // Extract numbers only
+    if (!phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (phoneDigits.length !== 10) {
+      newErrors.phone = "Phone number must be exactly 10 digits";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleNext = () => {
+    if (!validateFields()) return;
+
     const updatedData = {
       ...resumeData,
       name,
@@ -33,41 +63,10 @@ const PersonalDetails = () => {
       portfolio,
       summary
     };
-    
+
     updateResumeData(updatedData);
-    navigate('/details/education', { 
-      state: { templateId, buildType } 
-    });
-  };
-
-  const handleSkip = () => {
-    navigate('/details/education', { 
-      state: { templateId, buildType } 
-    });
-  };
-
-  const handleEnhanceWithAI = () => {
-    // TODO: Implement AI enhancement
-    alert('AI Enhancement will be implemented later');
-  };
-
-  const handleFinish = () => {
-    const updatedData = {
-      ...resumeData,
-      name,
-      role,
-      email,
-      phone,
-      location: location_field,
-      linkedin,
-      github,
-      portfolio,
-      summary
-    };
-    
-    updateResumeData(updatedData);
-    navigate(`/template${templateId}`, { 
-      state: { templateId, buildType } 
+    navigate('/details/education', {
+      state: { templateId, buildType }
     });
   };
 
@@ -124,7 +123,7 @@ const PersonalDetails = () => {
             Personal Details
           </h1>
           <p className="text-gray-300">
-            Let&apos;s start with your basic information
+            Let's start with your basic information
           </p>
         </motion.div>
 
@@ -142,10 +141,14 @@ const PersonalDetails = () => {
               <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-700 border border-gray-600 text-white focus:border-teal-400 focus:outline-none transition-all duration-300"
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setErrors({ ...errors, name: "" });
+                }}
+                className={`w-full px-4 py-3 rounded-xl bg-gray-700 border ${errors.name ? "border-red-500" : "border-gray-600"} text-white focus:outline-none transition-all duration-300`}
                 placeholder="Enter your full name"
               />
+              {errors.name && <p className="text-red-400 text-sm mt-1">{errors.name}</p>}
             </div>
 
             {/* Role/Job Title */}
@@ -154,10 +157,14 @@ const PersonalDetails = () => {
               <input
                 type="text"
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-700 border border-gray-600 text-white focus:border-teal-400 focus:outline-none transition-all duration-300"
+                onChange={(e) => {
+                  setRole(e.target.value);
+                  setErrors({ ...errors, role: "" });
+                }}
+                className={`w-full px-4 py-3 rounded-xl bg-gray-700 border ${errors.role ? "border-red-500" : "border-gray-600"} text-white focus:outline-none transition-all duration-300`}
                 placeholder="e.g. Full Stack Developer"
               />
+              {errors.role && <p className="text-red-400 text-sm mt-1">{errors.role}</p>}
             </div>
 
             {/* Email */}
@@ -166,10 +173,14 @@ const PersonalDetails = () => {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-700 border border-gray-600 text-white focus:border-teal-400 focus:outline-none transition-all duration-300"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrors({ ...errors, email: "" });
+                }}
+                className={`w-full px-4 py-3 rounded-xl bg-gray-700 border ${errors.email ? "border-red-500" : "border-gray-600"} text-white focus:outline-none transition-all duration-300`}
                 placeholder="Enter your email"
               />
+              {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email}</p>}
             </div>
 
             {/* Phone */}
@@ -178,10 +189,14 @@ const PersonalDetails = () => {
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-700 border border-gray-600 text-white focus:border-teal-400 focus:outline-none transition-all duration-300"
-                placeholder="Enter your phone number"
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  setErrors({ ...errors, phone: "" });
+                }}
+                className={`w-full px-4 py-3 rounded-xl bg-gray-700 border ${errors.phone ? "border-red-500" : "border-gray-600"} text-white focus:outline-none transition-all duration-300`}
+                placeholder="10-digit number"
               />
+              {errors.phone && <p className="text-red-400 text-sm mt-1">{errors.phone}</p>}
             </div>
 
             {/* Location */}
@@ -240,7 +255,7 @@ const PersonalDetails = () => {
                 onChange={(e) => setSummary(e.target.value)}
                 rows="4"
                 className="w-full px-4 py-3 rounded-xl bg-gray-700 border border-gray-600 text-white focus:border-teal-400 focus:outline-none transition-all duration-300"
-                placeholder="Brief description of your professional background and key achievements..."
+                placeholder="Brief description of your professional background..."
               />
             </div>
           </div>
@@ -251,34 +266,13 @@ const PersonalDetails = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.6 }}
-          className="flex flex-wrap justify-center gap-4"
+          className="flex justify-center"
         >
           <button
             onClick={handleNext}
-            className="px-8 py-3 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            className="px-12 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white font-bold rounded-xl hover:scale-105 hover:shadow-lg hover:shadow-teal-500/20 transition-all active:scale-95"
           >
-            Next
-          </button>
-
-          <button
-            onClick={handleEnhanceWithAI}
-            className="px-8 py-3 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-          >
-            Enhance with AI
-          </button>
-
-          <button
-            onClick={handleSkip}
-            className="px-8 py-3 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-          >
-            Skip
-          </button>
-
-          <button
-            onClick={handleFinish}
-            className="px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-          >
-            Finish
+            Save & Next
           </button>
         </motion.div>
       </motion.div>

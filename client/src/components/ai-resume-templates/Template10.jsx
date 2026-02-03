@@ -82,7 +82,7 @@ const Template10 = () => {
       if (!Array.isArray(experience)) return [];
       return experience.map(exp => {
         if (typeof exp !== 'object' || exp === null) return null;
-        
+
         // Ensure accomplishment is always an array
         let accomplishment = [];
         if (Array.isArray(exp.accomplishment)) {
@@ -134,7 +134,7 @@ const Template10 = () => {
       if (!Array.isArray(projects)) return [];
       return projects.map(proj => {
         if (typeof proj !== 'object' || proj === null) return null;
-        
+
         let technologies = [];
         if (Array.isArray(proj.technologies)) {
           technologies = proj.technologies;
@@ -263,10 +263,10 @@ const Template10 = () => {
   // Function to save to database (extracted for reuse)
   const saveToDatabase = async (dataToSave) => {
     if (!isAuthenticated) return;
-    
+
     try {
       const cleaned = sanitizeResumeData(dataToSave);
-      
+
       // Transform flat data structure to backend expected format
       const structuredData = {
         templateId: 10, // Template10
@@ -290,7 +290,7 @@ const Template10 = () => {
         interests: cleaned.interests || [],
         languages: cleaned.languages || []
       };
-      
+
       const saveResult = await resumeService.saveResumeData(structuredData);
       if (saveResult && saveResult.success) {
         setIsAutoSaving(false);
@@ -326,12 +326,12 @@ const Template10 = () => {
   const handleFieldChange = (field, value) => {
     const updatedData = { ...localData, [field]: value };
     setLocalData(updatedData);
-    
+
     // Save to localStorage via context immediately
     if (updateResumeData) {
       updateResumeData(updatedData);
     }
-    
+
     // Trigger debounced database save
     if (isAuthenticated && editMode) {
       debouncedAutoSave(updatedData);
@@ -348,12 +348,12 @@ const Template10 = () => {
       updated[index] = { ...updated[index], [key]: value };
       const updatedData = { ...localData, [section]: updated };
       setLocalData(updatedData);
-      
+
       // Save to localStorage via context immediately
       if (updateResumeData) {
         updateResumeData(updatedData);
       }
-      
+
       // Trigger debounced database save
       if (isAuthenticated && editMode) {
         debouncedAutoSave(updatedData);
@@ -368,9 +368,9 @@ const Template10 = () => {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      
+
       const cleaned = sanitizeResumeData(localData);
-      
+
       // Save to localStorage via context
       if (updateResumeData) {
         updateResumeData(cleaned);
@@ -378,7 +378,7 @@ const Template10 = () => {
         setResumeData(cleaned);
       }
       setLocalData(cleaned);
-      
+
       // Save to database if user is authenticated
       if (isAuthenticated) {
         const saved = await saveToDatabase(cleaned);
@@ -391,7 +391,7 @@ const Template10 = () => {
         // User not authenticated - saved locally only
         toast.info('Resume saved locally. Sign in to save permanently to database.');
       }
-      
+
       setEditMode(false);
       setEditingSections({});
       setEditingHeader(false);
@@ -529,7 +529,7 @@ const Template10 = () => {
 
   const handleContentChange = (section, value, field = null, id = null) => {
     let updatedData;
-    
+
     if (section === 'header') {
       updatedData = {
         ...localData,
@@ -554,12 +554,12 @@ const Template10 = () => {
     } else {
       return;
     }
-    
+
     // Save to localStorage via context immediately
     if (updateResumeData) {
       updateResumeData(updatedData);
     }
-    
+
     // Trigger debounced database save
     if (isAuthenticated && editMode) {
       debouncedAutoSave(updatedData);
@@ -628,11 +628,11 @@ const Template10 = () => {
       <div style={{ display: "flex" }}>
         <Sidebar onEnhance={handleEnhance} resumeRef={resumeRef} />
 
-        <div style={{ 
-          flexGrow: 1, 
-          padding: "2.5rem", 
-          display: "flex", 
-          flexDirection: "column", 
+        <div style={{
+          flexGrow: 1,
+          padding: "2.5rem",
+          display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           overflowY: "auto"
         }}>
@@ -665,21 +665,21 @@ const Template10 = () => {
                 Auto-saving...
               </div>
             )}
-            
+
             {sections.map((sectionName) => {
               switch (sectionName) {
                 case 'header':
                   return (
-                    <header key={sectionName} style={{ 
-                      marginBottom: "2rem", 
+                    <header key={sectionName} style={{
+                      marginBottom: "2rem",
                       position: "relative",
                       padding: "2rem"
                     }}>
-                      <div style={{ 
-                        display: "flex", 
-                        flexDirection: "column", 
-                        justifyContent: "space-between", 
-                        width: "100%", 
+                      <div style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        width: "100%",
                         gap: "1rem"
                       }}>
                         <div style={{ flex: 1 }}>
@@ -765,8 +765,11 @@ const Template10 = () => {
                           ) : (
                             <>
                               {localData.phone && <div style={{ marginBottom: "0.25rem" }}>{localData.phone}</div>}
-                              {localData.email && <div style={{ marginBottom: "0.25rem" }}>{localData.email}</div>}
-                              {localData.location && <div>{localData.location}</div>}
+                              {localData.email && <div style={{ marginBottom: "0.25rem" }}><a href={`mailto:${localData.email}`} style={{ color: "inherit", textDecoration: "none" }}>{localData.email}</a></div>}
+                              {localData.location && <div style={{ marginBottom: "0.25rem" }}>{localData.location}</div>}
+                              {localData.linkedin && <div style={{ marginBottom: "0.25rem" }}><a href={localData.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>LinkedIn</a></div>}
+                              {localData.github && <div style={{ marginBottom: "0.25rem" }}><a href={localData.github} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>GitHub</a></div>}
+                              {localData.portfolio && <div><a href={localData.portfolio} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>Portfolio</a></div>}
                             </>
                           )}
                         </div>
@@ -776,8 +779,8 @@ const Template10 = () => {
 
                 case 'summary':
                   return (editMode || isFilled(localData.summary)) && (
-                    <section key={sectionName} style={{ 
-                      marginBottom: "2rem", 
+                    <section key={sectionName} style={{
+                      marginBottom: "2rem",
                       position: "relative",
                       padding: "0 2rem"
                     }}>
@@ -804,11 +807,11 @@ const Template10 = () => {
                       )}
                     </section>
                   );
-                
+
                 case 'experience':
                   return (editMode || isFilled(localData.experience)) && (
-                    <section key={sectionName} style={{ 
-                      marginBottom: "2rem", 
+                    <section key={sectionName} style={{
+                      marginBottom: "2rem",
                       position: "relative",
                       padding: "0 2rem"
                     }}>
@@ -819,19 +822,19 @@ const Template10 = () => {
                         if (!exp || typeof exp !== 'object') return null;
                         const accomplishment = Array.isArray(exp.accomplishment) ? exp.accomplishment : [];
                         return (
-                          <div key={exp.id || idx} style={{ 
-                            marginBottom: "1.5rem", 
-                            position: "relative", 
-                            border: "1px solid #e5e7eb", 
-                            padding: "1rem", 
-                            borderRadius: "0.5rem" 
+                          <div key={exp.id || idx} style={{
+                            marginBottom: "1.5rem",
+                            position: "relative",
+                            border: "1px solid #e5e7eb",
+                            padding: "1rem",
+                            borderRadius: "0.5rem"
                           }}>
-                            <div style={{ 
-                              display: "flex", 
-                              flexDirection: "column", 
-                              justifyContent: "space-between", 
-                              alignItems: "flex-start", 
-                              marginBottom: "0.5rem" 
+                            <div style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              marginBottom: "0.5rem"
                             }}>
                               {editMode ? (
                                 <>
@@ -947,8 +950,8 @@ const Template10 = () => {
 
                 case 'achievements':
                   return (editMode || isFilled(localData.achievements)) && (
-                    <section key={sectionName} style={{ 
-                      marginBottom: "2rem", 
+                    <section key={sectionName} style={{
+                      marginBottom: "2rem",
                       position: "relative",
                       padding: "0 2rem"
                     }}>
@@ -958,10 +961,10 @@ const Template10 = () => {
                       {editMode ? (
                         <div>
                           {(localData.achievements || []).map((achievement, idx) => {
-                            const achievementText = typeof achievement === 'string' 
-                              ? achievement 
+                            const achievementText = typeof achievement === 'string'
+                              ? achievement
                               : (achievement?.title || achievement?.description || achievement?.name || '');
-                            
+
                             return (
                               <div key={idx} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
                                 <textarea
@@ -1005,10 +1008,10 @@ const Template10 = () => {
                       ) : (
                         <ul style={{ paddingLeft: "1.25rem" }}>
                           {(localData.achievements || []).map((item, i) => {
-                            const achievementText = typeof item === 'string' 
-                              ? item 
+                            const achievementText = typeof item === 'string'
+                              ? item
                               : (item?.title || item?.description || item?.name || '');
-                            
+
                             return achievementText ? (
                               <li key={i} style={{ color: "#374151" }}>{achievementText}</li>
                             ) : null;
@@ -1020,8 +1023,8 @@ const Template10 = () => {
 
                 case 'projects':
                   return (editMode || isFilled(localData.projects)) && (
-                    <section key={sectionName} style={{ 
-                      marginBottom: "2rem", 
+                    <section key={sectionName} style={{
+                      marginBottom: "2rem",
                       position: "relative",
                       padding: "0 2rem"
                     }}>
@@ -1032,19 +1035,19 @@ const Template10 = () => {
                         if (!proj || typeof proj !== 'object') return null;
                         const technologies = Array.isArray(proj.technologies) ? proj.technologies : [];
                         return (
-                          <div key={proj.id || idx} style={{ 
-                            marginBottom: "1.5rem", 
-                            position: "relative", 
-                            border: "1px solid #e5e7eb", 
-                            padding: "1rem", 
-                            borderRadius: "0.5rem" 
+                          <div key={proj.id || idx} style={{
+                            marginBottom: "1.5rem",
+                            position: "relative",
+                            border: "1px solid #e5e7eb",
+                            padding: "1rem",
+                            borderRadius: "0.5rem"
                           }}>
-                            <div style={{ 
-                              display: "flex", 
-                              flexDirection: "column", 
-                              justifyContent: "space-between", 
-                              alignItems: "flex-start", 
-                              marginBottom: "0.5rem" 
+                            <div style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              marginBottom: "0.5rem"
                             }}>
                               {editMode ? (
                                 <>
@@ -1160,8 +1163,8 @@ const Template10 = () => {
 
                 case 'education':
                   return (editMode || isFilled(localData.education)) && (
-                    <section key={sectionName} style={{ 
-                      marginBottom: "2rem", 
+                    <section key={sectionName} style={{
+                      marginBottom: "2rem",
                       position: "relative",
                       padding: "0 2rem"
                     }}>
@@ -1171,18 +1174,18 @@ const Template10 = () => {
                       {(localData.education || []).map((edu, idx) => {
                         if (!edu || typeof edu !== 'object') return null;
                         return (
-                          <div key={edu.id || idx} style={{ 
-                            marginBottom: "1rem", 
-                            position: "relative", 
-                            border: "1px solid #e5e7eb", 
-                            padding: "1rem", 
-                            borderRadius: "0.5rem" 
+                          <div key={edu.id || idx} style={{
+                            marginBottom: "1rem",
+                            position: "relative",
+                            border: "1px solid #e5e7eb",
+                            padding: "1rem",
+                            borderRadius: "0.5rem"
                           }}>
-                            <div style={{ 
-                              display: "flex", 
-                              flexDirection: "column", 
-                              justifyContent: "space-between", 
-                              alignItems: "flex-start" 
+                            <div style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start"
                             }}>
                               <div style={{ flex: 1 }}>
                                 {editMode ? (
@@ -1282,15 +1285,15 @@ const Template10 = () => {
 
                 case 'skills':
                   return (editMode || isFilled(localData.skills) || isFilled(localData.languages) || isFilled(localData.interests)) && (
-                    <section key={sectionName} style={{ 
-                      marginBottom: "2rem", 
+                    <section key={sectionName} style={{
+                      marginBottom: "2rem",
                       position: "relative",
                       padding: "0 2rem 2rem 2rem"
                     }}>
                       <h2 style={{ fontSize: "2rem", fontWeight: "bold", marginBottom: "1rem" }}>Skills</h2>
                       <div style={{ borderBottom: "1px solid #d1d5db", marginBottom: "2rem" }}></div>
                       <SectionButtons section="skills" />
-                      
+
                       {/* Technical Skills */}
                       <div style={{ marginBottom: "1rem" }}>
                         <h3 style={{ fontSize: "1.125rem", fontWeight: "600", marginBottom: "0.5rem" }}>Technical Skills:</h3>
@@ -1364,8 +1367,8 @@ const Template10 = () => {
           </div>
 
           {/* Global Edit Controls */}
-          <div style={{ 
-            marginTop: "1rem", 
+          <div style={{
+            marginTop: "1rem",
             textAlign: "center",
             display: "flex",
             gap: "0.5rem",

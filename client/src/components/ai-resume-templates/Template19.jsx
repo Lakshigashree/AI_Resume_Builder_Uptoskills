@@ -69,7 +69,7 @@ const Template19 = () => {
 
   const handleSave = () => {
     const normalized = getDefaulted(localData);
-    
+
     // Normalize skills
     if (Array.isArray(normalized.skills)) {
       normalized.skills = normalized.skills.filter(s => s && s.trim());
@@ -87,7 +87,7 @@ const Template19 = () => {
     setResumeData(normalized);
     try {
       localStorage.setItem("resumeData", JSON.stringify(normalized));
-    } catch (e) {}
+    } catch (e) { }
     setEditMode(false);
   };
 
@@ -98,7 +98,7 @@ const Template19 = () => {
 
   // --- Helpers ---
   const safe = (arr) => (Array.isArray(arr) ? arr : []);
-  
+
   // STRICT VISIBILITY CHECK
   // Returns TRUE if (Edit Mode is ON) OR (Array has at least one valid non-empty item)
   const isVisible = (arr, section) => {
@@ -107,9 +107,9 @@ const Template19 = () => {
 
     return arr.some((item) => {
       if (typeof item === 'string') return item.trim().length > 0;
-      
+
       // Check specific fields based on section
-      switch(section) {
+      switch (section) {
         case 'education': return !!(item.degree?.trim() || item.institution?.trim());
         case 'experience': return !!(item.title?.trim() || item.companyName?.trim());
         case 'projects': return !!(item.title?.trim() || item.description?.trim());
@@ -160,7 +160,7 @@ const Template19 = () => {
       <div style={{ display: "flex" }}>
         <Sidebar resumeRef={resumeRef} />
         <div style={{ flex: 1, padding: "2rem", display: "flex", justifyContent: "center" }}>
-          
+
           {/* Resume Box */}
           <div
             ref={resumeRef}
@@ -232,7 +232,21 @@ const Template19 = () => {
                       style={{ borderBottom: "1px solid #ccc", width: "150px", fontSize: "0.875rem" }}
                     />
                   ) : (
-                    localData[key] && <span key={key} style={{ minWidth: 120 }}>{localData[key]}</span>
+                    localData[key] && (
+                      <span key={key} style={{ minWidth: 120 }}>
+                        {["linkedin", "github", "portfolio"].includes(key) ? (
+                          <a href={localData[key]} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+                            {localData[key]}
+                          </a>
+                        ) : key === "email" ? (
+                          <a href={`mailto:${localData[key]}`} style={{ color: "inherit", textDecoration: "none" }}>
+                            {localData[key]}
+                          </a>
+                        ) : (
+                          localData[key]
+                        )}
+                      </span>
+                    )
                   )
                 )}
               </div>
@@ -260,94 +274,94 @@ const Template19 = () => {
             )}
 
             {/* Skills */}
-{(editMode || (localData.skills && localData.skills.length > 0)) && (
-  <div>
-    <h3 style={{ fontWeight: "650", fontSize: "1.1rem" }}>Skills</h3>
+            {(editMode || (localData.skills && localData.skills.length > 0)) && (
+              <div>
+                <h3 style={{ fontWeight: "650", fontSize: "1.1rem" }}>Skills</h3>
 
-    {editMode ? (
-      <>
-        {/* Existing skills list */}
-        {safe(localData.skills).map((skill, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", marginTop: "0.5rem" }}>
-            <input
-              value={skill}
-              onChange={(e) => {
-                const updated = [...safe(localData.skills)];
-                updated[i] = e.target.value;
-                handleFieldChange("skills", updated);
-              }}
-              placeholder="Skill"
-              style={{
-                flex: 1,
-                padding: "0.5rem",
-                border: "1px solid #ccc",
-                borderRadius: "6px",
-              }}
-            />
-            <button
-              onClick={() => {
-                const updated = [...safe(localData.skills)];
-                updated.splice(i, 1);
-                handleFieldChange("skills", updated);
-              }}
-              style={{
-                marginLeft: "0.5rem",
-                color: "red",
-                fontSize: "1rem",
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-              }}
-            >
-              ✖
-            </button>
-          </div>
-        ))}
+                {editMode ? (
+                  <>
+                    {/* Existing skills list */}
+                    {safe(localData.skills).map((skill, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", marginTop: "0.5rem" }}>
+                        <input
+                          value={skill}
+                          onChange={(e) => {
+                            const updated = [...safe(localData.skills)];
+                            updated[i] = e.target.value;
+                            handleFieldChange("skills", updated);
+                          }}
+                          placeholder="Skill"
+                          style={{
+                            flex: 1,
+                            padding: "0.5rem",
+                            border: "1px solid #ccc",
+                            borderRadius: "6px",
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            const updated = [...safe(localData.skills)];
+                            updated.splice(i, 1);
+                            handleFieldChange("skills", updated);
+                          }}
+                          style={{
+                            marginLeft: "0.5rem",
+                            color: "red",
+                            fontSize: "1rem",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                          }}
+                        >
+                          ✖
+                        </button>
+                      </div>
+                    ))}
 
-        {/* EMPTY FIELD FOR NEW SKILL */}
-        <input
-          placeholder="Type a new skill and press Enter"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && e.target.value.trim()) {
-              handleFieldChange("skills", [...safe(localData.skills), e.target.value.trim()]);
-              e.target.value = ""; // clear input
-            }
-          }}
-          style={{
-            width: "100%",
-            marginTop: "0.75rem",
-            padding: "0.5rem",
-            border: "1px solid #ccc",
-            borderRadius: "6px",
-          }}
-        />
+                    {/* EMPTY FIELD FOR NEW SKILL */}
+                    <input
+                      placeholder="Type a new skill and press Enter"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && e.target.value.trim()) {
+                          handleFieldChange("skills", [...safe(localData.skills), e.target.value.trim()]);
+                          e.target.value = ""; // clear input
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        marginTop: "0.75rem",
+                        padding: "0.5rem",
+                        border: "1px solid #ccc",
+                        borderRadius: "6px",
+                      }}
+                    />
 
-        {/* Add Skill Button */}
-        <button
-          onClick={() =>
-            handleFieldChange("skills", [...safe(localData.skills), ""])
-          }
-          style={{ marginTop: "0.5rem", color: "#2563eb" }}
-        >
-          + Add Skill
-        </button>
-      </>
-    ) : (
-      // VIEW MODE (only show actual skills)
-      <>
-        {localData.skills.length > 0 && (
-          <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
-            {localData.skills.map((skill, i) => (
-              <li key={i}>{skill}</li>
-            ))}
-          </ul>
-        )}
-      </>
-    )}
+                    {/* Add Skill Button */}
+                    <button
+                      onClick={() =>
+                        handleFieldChange("skills", [...safe(localData.skills), ""])
+                      }
+                      style={{ marginTop: "0.5rem", color: "#2563eb" }}
+                    >
+                      + Add Skill
+                    </button>
+                  </>
+                ) : (
+                  // VIEW MODE (only show actual skills)
+                  <>
+                    {localData.skills.length > 0 && (
+                      <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
+                        {localData.skills.map((skill, i) => (
+                          <li key={i}>{skill}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
 
-    <hr style={{ margin: "1.5rem 0", borderColor: "#e5e7eb" }} />
-  </div>
-)}
+                <hr style={{ margin: "1.5rem 0", borderColor: "#e5e7eb" }} />
+              </div>
+            )}
 
 
 
@@ -458,50 +472,50 @@ const Template19 = () => {
               <div>
                 <h3 style={{ fontWeight: "650", fontSize: "1.1rem" }}>Education</h3>
                 {safe(localData.education).map((edu, i) => (
-                   (editMode || (edu.degree && edu.degree.trim())) ? (
-                  <div key={i} style={{ marginTop: "0.75rem" }}>
-                    {editMode ? (
-                      <>
-                        <input
-                          value={edu.degree || ""}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.education)];
-                            updated[i] = { ...edu, degree: e.target.value };
-                            handleFieldChange("education", updated);
-                          }}
-                          placeholder="Degree"
-                          style={{ width: "100%", marginBottom: "0.5rem" }}
-                        />
-                        <input
-                          value={edu.institution || ""}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.education)];
-                            updated[i] = { ...edu, institution: e.target.value };
-                            handleFieldChange("education", updated);
-                          }}
-                          placeholder="Institution"
-                          style={{ width: "100%", marginBottom: "0.5rem" }}
-                        />
-                        <input
-                          value={edu.duration || ""}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.education)];
-                            updated[i] = { ...edu, duration: e.target.value };
-                            handleFieldChange("education", updated);
-                          }}
-                          placeholder="Duration"
-                          style={{ width: "100%", marginBottom: "0.5rem" }}
-                        />
-                        <button onClick={() => removeEducation(i)} style={{ color: "#dc2626", fontSize: "0.75rem" }}>Remove</button>
-                      </>
-                    ) : (
-                      <>
-                        <p style={{ fontWeight: "600" }}>{edu.degree}</p>
-                        <p>{edu.institution} {edu.duration ? `(${edu.duration})` : ''}</p>
-                      </>
-                    )}
-                  </div>
-                   ) : null
+                  (editMode || (edu.degree && edu.degree.trim())) ? (
+                    <div key={i} style={{ marginTop: "0.75rem" }}>
+                      {editMode ? (
+                        <>
+                          <input
+                            value={edu.degree || ""}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.education)];
+                              updated[i] = { ...edu, degree: e.target.value };
+                              handleFieldChange("education", updated);
+                            }}
+                            placeholder="Degree"
+                            style={{ width: "100%", marginBottom: "0.5rem" }}
+                          />
+                          <input
+                            value={edu.institution || ""}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.education)];
+                              updated[i] = { ...edu, institution: e.target.value };
+                              handleFieldChange("education", updated);
+                            }}
+                            placeholder="Institution"
+                            style={{ width: "100%", marginBottom: "0.5rem" }}
+                          />
+                          <input
+                            value={edu.duration || ""}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.education)];
+                              updated[i] = { ...edu, duration: e.target.value };
+                              handleFieldChange("education", updated);
+                            }}
+                            placeholder="Duration"
+                            style={{ width: "100%", marginBottom: "0.5rem" }}
+                          />
+                          <button onClick={() => removeEducation(i)} style={{ color: "#dc2626", fontSize: "0.75rem" }}>Remove</button>
+                        </>
+                      ) : (
+                        <>
+                          <p style={{ fontWeight: "600" }}>{edu.degree}</p>
+                          <p>{edu.institution} {edu.duration ? `(${edu.duration})` : ''}</p>
+                        </>
+                      )}
+                    </div>
+                  ) : null
                 ))}
                 {editMode && <button onClick={addEducation} style={{ marginTop: "0.5rem", color: "#2563eb" }}>+ Add Education</button>}
                 <hr style={{ margin: "1.5rem 0", borderColor: "#e5e7eb" }} />
@@ -513,64 +527,64 @@ const Template19 = () => {
               <div>
                 <h3 style={{ fontWeight: "650", fontSize: "1.1rem" }}>Experience</h3>
                 {safe(localData.experience).map((exp, i) => (
-                   (editMode || (exp.title && exp.title.trim())) ? (
-                  <div key={i} style={{ marginTop: "0.75rem" }}>
-                    {editMode ? (
-                      <>
-                        <input
-                          value={exp.title || ""}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.experience)];
-                            updated[i] = { ...exp, title: e.target.value };
-                            handleFieldChange("experience", updated);
-                          }}
-                          placeholder="Job Title"
-                          style={{ width: "100%", marginBottom: "0.5rem" }}
-                        />
-                        <input
-                          value={exp.companyName || ""}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.experience)];
-                            updated[i] = { ...exp, companyName: e.target.value };
-                            handleFieldChange("experience", updated);
-                          }}
-                          placeholder="Company"
-                          style={{ width: "100%", marginBottom: "0.5rem" }}
-                        />
-                        <input
-                          value={exp.date || ""}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.experience)];
-                            updated[i] = { ...exp, date: e.target.value };
-                            handleFieldChange("experience", updated);
-                          }}
-                          placeholder="Date"
-                          style={{ width: "100%", marginBottom: "0.5rem" }}
-                        />
-                        <textarea
-                          value={(exp.accomplishment || []).join("\n")}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.experience)];
-                            updated[i] = { ...exp, accomplishment: e.target.value.split("\n").filter(Boolean) };
-                            handleFieldChange("experience", updated);
-                          }}
-                          rows={3}
-                          placeholder="Accomplishments (one per line)"
-                          style={{ width: "100%", marginTop: "0.5rem" }}
-                        />
-                        <button onClick={() => removeExperience(i)} style={{ color: "#dc2626", fontSize: "0.75rem" }}>Remove</button>
-                      </>
-                    ) : (
-                      <>
-                        <p style={{ fontWeight: "600" }}>{exp.title} at {exp.companyName}</p>
-                        <p style={{ fontSize: "0.875rem", color: "#4b5563" }}>{exp.date}</p>
-                        <ul style={{ paddingLeft: "1.5rem", listStyle: "disc" }}>
-                          {safe(exp.accomplishment).map((item, j) => <li key={j}>{item}</li>)}
-                        </ul>
-                      </>
-                    )}
-                  </div>
-                   ) : null
+                  (editMode || (exp.title && exp.title.trim())) ? (
+                    <div key={i} style={{ marginTop: "0.75rem" }}>
+                      {editMode ? (
+                        <>
+                          <input
+                            value={exp.title || ""}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.experience)];
+                              updated[i] = { ...exp, title: e.target.value };
+                              handleFieldChange("experience", updated);
+                            }}
+                            placeholder="Job Title"
+                            style={{ width: "100%", marginBottom: "0.5rem" }}
+                          />
+                          <input
+                            value={exp.companyName || ""}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.experience)];
+                              updated[i] = { ...exp, companyName: e.target.value };
+                              handleFieldChange("experience", updated);
+                            }}
+                            placeholder="Company"
+                            style={{ width: "100%", marginBottom: "0.5rem" }}
+                          />
+                          <input
+                            value={exp.date || ""}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.experience)];
+                              updated[i] = { ...exp, date: e.target.value };
+                              handleFieldChange("experience", updated);
+                            }}
+                            placeholder="Date"
+                            style={{ width: "100%", marginBottom: "0.5rem" }}
+                          />
+                          <textarea
+                            value={(exp.accomplishment || []).join("\n")}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.experience)];
+                              updated[i] = { ...exp, accomplishment: e.target.value.split("\n").filter(Boolean) };
+                              handleFieldChange("experience", updated);
+                            }}
+                            rows={3}
+                            placeholder="Accomplishments (one per line)"
+                            style={{ width: "100%", marginTop: "0.5rem" }}
+                          />
+                          <button onClick={() => removeExperience(i)} style={{ color: "#dc2626", fontSize: "0.75rem" }}>Remove</button>
+                        </>
+                      ) : (
+                        <>
+                          <p style={{ fontWeight: "600" }}>{exp.title} at {exp.companyName}</p>
+                          <p style={{ fontSize: "0.875rem", color: "#4b5563" }}>{exp.date}</p>
+                          <ul style={{ paddingLeft: "1.5rem", listStyle: "disc" }}>
+                            {safe(exp.accomplishment).map((item, j) => <li key={j}>{item}</li>)}
+                          </ul>
+                        </>
+                      )}
+                    </div>
+                  ) : null
                 ))}
                 {editMode && <button onClick={addExperience} style={{ marginTop: "0.5rem", color: "#2563eb" }}>+ Add Experience</button>}
                 <hr style={{ margin: "1.5rem 0", borderColor: "#e5e7eb" }} />
@@ -583,48 +597,48 @@ const Template19 = () => {
                 <h3 style={{ fontWeight: "650", fontSize: "1.1rem" }}>Languages</h3>
                 {safe(localData.languagesDetailed).map((lang, i) => (
                   (editMode || (lang.language && lang.language.trim())) ? (
-                  <div key={i} style={{ marginTop: "0.5rem" }}>
-                    {editMode ? (
-                      <>
-                        <input
-                          value={lang.language || ""}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.languagesDetailed)];
-                            updated[i] = { ...lang, language: e.target.value };
-                            handleFieldChange("languagesDetailed", updated);
-                          }}
-                          placeholder="Language"
-                          style={{ width: "60%", marginRight: "0.5rem" }}
-                        />
-                        <select
-                          value={lang.proficiency || "Beginner"}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.languagesDetailed)];
-                            updated[i] = { ...lang, proficiency: e.target.value };
-                            handleFieldChange("languagesDetailed", updated);
-                          }}
-                          style={{ width: "35%" }}
-                        >
-                          <option>Beginner</option>
-                          <option>Intermediate</option>
-                          <option>Advanced</option>
-                          <option>Native</option>
-                        </select>
-                        <button
-                          onClick={() => {
-                            const updated = [...safe(localData.languagesDetailed)];
-                            updated.splice(i, 1);
-                            handleFieldChange("languagesDetailed", updated);
-                          }}
-                          style={{ color: "#dc2626", fontSize: "0.75rem", marginLeft: "0.5rem" }}
-                        >
-                          Remove
-                        </button>
-                      </>
-                    ) : (
-                      <p style={{ fontSize: "0.95rem" }}><strong>{lang.language}</strong> – {lang.proficiency}</p>
-                    )}
-                  </div>
+                    <div key={i} style={{ marginTop: "0.5rem" }}>
+                      {editMode ? (
+                        <>
+                          <input
+                            value={lang.language || ""}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.languagesDetailed)];
+                              updated[i] = { ...lang, language: e.target.value };
+                              handleFieldChange("languagesDetailed", updated);
+                            }}
+                            placeholder="Language"
+                            style={{ width: "60%", marginRight: "0.5rem" }}
+                          />
+                          <select
+                            value={lang.proficiency || "Beginner"}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.languagesDetailed)];
+                              updated[i] = { ...lang, proficiency: e.target.value };
+                              handleFieldChange("languagesDetailed", updated);
+                            }}
+                            style={{ width: "35%" }}
+                          >
+                            <option>Beginner</option>
+                            <option>Intermediate</option>
+                            <option>Advanced</option>
+                            <option>Native</option>
+                          </select>
+                          <button
+                            onClick={() => {
+                              const updated = [...safe(localData.languagesDetailed)];
+                              updated.splice(i, 1);
+                              handleFieldChange("languagesDetailed", updated);
+                            }}
+                            style={{ color: "#dc2626", fontSize: "0.75rem", marginLeft: "0.5rem" }}
+                          >
+                            Remove
+                          </button>
+                        </>
+                      ) : (
+                        <p style={{ fontSize: "0.95rem" }}><strong>{lang.language}</strong> – {lang.proficiency}</p>
+                      )}
+                    </div>
                   ) : null
                 ))}
                 {editMode && (
@@ -649,64 +663,64 @@ const Template19 = () => {
                 <h3 style={{ fontWeight: "650", fontSize: "1.1rem" }}>Certifications</h3>
                 {safe(localData.certifications).map((cert, i) => (
                   (editMode || ((typeof cert === 'string' ? cert : cert.title) || "").trim()) ? (
-                  <div key={i} style={{ marginTop: "0.75rem" }}>
-                    {editMode ? (
-                      <>
-                        <input
-                          value={(typeof cert === "object" ? cert.title : cert) || ""}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.certifications)];
-                            if (typeof cert === "object") updated[i] = { ...cert, title: e.target.value };
-                            else updated[i] = e.target.value;
-                            handleFieldChange("certifications", updated);
-                          }}
-                          placeholder="Certification Title"
-                          style={{ width: "100%", marginBottom: "0.5rem" }}
-                        />
-                        {typeof cert === "object" && (
-                          <>
-                            <input
-                              value={cert.issuer || ""}
-                              onChange={(e) => {
-                                const updated = [...safe(localData.certifications)];
-                                updated[i] = { ...cert, issuer: e.target.value };
-                                handleFieldChange("certifications", updated);
-                              }}
-                              placeholder="Issuer"
-                              style={{ width: "100%", marginBottom: "0.5rem" }}
-                            />
-                            <input
-                              value={cert.date || ""}
-                              onChange={(e) => {
-                                const updated = [...safe(localData.certifications)];
-                                updated[i] = { ...cert, date: e.target.value };
-                                handleFieldChange("certifications", updated);
-                              }}
-                              placeholder="Year"
-                              style={{ width: "100%", marginBottom: "0.5rem" }}
-                            />
-                          </>
-                        )}
-                        <button
-                          onClick={() => {
-                            const updated = [...safe(localData.certifications)];
-                            updated.splice(i, 1);
-                            handleFieldChange("certifications", updated);
-                          }}
-                          style={{ color: "#dc2626", fontSize: "0.75rem" }}
-                        >
-                          Remove
-                        </button>
-                      </>
-                    ) : (
-                      <div>
-                        <p style={{ fontWeight: "600" }}>{typeof cert === "object" ? cert.title : cert}</p>
-                        {typeof cert === "object" && cert.issuer && (
-                          <p style={{ fontSize: "0.9rem", color: "#4b5563" }}>{cert.issuer} {cert.date && `(${cert.date})`}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                    <div key={i} style={{ marginTop: "0.75rem" }}>
+                      {editMode ? (
+                        <>
+                          <input
+                            value={(typeof cert === "object" ? cert.title : cert) || ""}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.certifications)];
+                              if (typeof cert === "object") updated[i] = { ...cert, title: e.target.value };
+                              else updated[i] = e.target.value;
+                              handleFieldChange("certifications", updated);
+                            }}
+                            placeholder="Certification Title"
+                            style={{ width: "100%", marginBottom: "0.5rem" }}
+                          />
+                          {typeof cert === "object" && (
+                            <>
+                              <input
+                                value={cert.issuer || ""}
+                                onChange={(e) => {
+                                  const updated = [...safe(localData.certifications)];
+                                  updated[i] = { ...cert, issuer: e.target.value };
+                                  handleFieldChange("certifications", updated);
+                                }}
+                                placeholder="Issuer"
+                                style={{ width: "100%", marginBottom: "0.5rem" }}
+                              />
+                              <input
+                                value={cert.date || ""}
+                                onChange={(e) => {
+                                  const updated = [...safe(localData.certifications)];
+                                  updated[i] = { ...cert, date: e.target.value };
+                                  handleFieldChange("certifications", updated);
+                                }}
+                                placeholder="Year"
+                                style={{ width: "100%", marginBottom: "0.5rem" }}
+                              />
+                            </>
+                          )}
+                          <button
+                            onClick={() => {
+                              const updated = [...safe(localData.certifications)];
+                              updated.splice(i, 1);
+                              handleFieldChange("certifications", updated);
+                            }}
+                            style={{ color: "#dc2626", fontSize: "0.75rem" }}
+                          >
+                            Remove
+                          </button>
+                        </>
+                      ) : (
+                        <div>
+                          <p style={{ fontWeight: "600" }}>{typeof cert === "object" ? cert.title : cert}</p>
+                          {typeof cert === "object" && cert.issuer && (
+                            <p style={{ fontSize: "0.9rem", color: "#4b5563" }}>{cert.issuer} {cert.date && `(${cert.date})`}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ) : null
                 ))}
                 {editMode && (
@@ -731,64 +745,64 @@ const Template19 = () => {
                 <h3 style={{ fontWeight: "650", fontSize: "1.1rem" }}>Achievements</h3>
                 {safe(localData.achievements).map((ach, i) => (
                   (editMode || ((typeof ach === 'string' ? ach : ach.title) || "").trim()) ? (
-                  <div key={i} style={{ marginTop: "0.75rem" }}>
-                    {editMode ? (
-                      <>
-                        <input
-                          value={(typeof ach === "object" ? ach.title : ach) || ""}
-                          onChange={(e) => {
-                            const updated = [...safe(localData.achievements)];
-                            if (typeof ach === "object") updated[i] = { ...ach, title: e.target.value };
-                            else updated[i] = e.target.value;
-                            handleFieldChange("achievements", updated);
-                          }}
-                          placeholder="Achievement Title"
-                          style={{ width: "100%", marginBottom: "0.5rem" }}
-                        />
-                        {typeof ach === "object" && (
-                          <>
-                            <textarea
-                              value={ach.description || ""}
-                              onChange={(e) => {
-                                const updated = [...safe(localData.achievements)];
-                                updated[i] = { ...ach, description: e.target.value };
-                                handleFieldChange("achievements", updated);
-                              }}
-                              placeholder="Description"
-                              rows={2}
-                              style={{ width: "100%", marginBottom: "0.5rem" }}
-                            />
-                            <input
-                              value={ach.year || ""}
-                              onChange={(e) => {
-                                const updated = [...safe(localData.achievements)];
-                                updated[i] = { ...ach, year: e.target.value };
-                                handleFieldChange("achievements", updated);
-                              }}
-                              placeholder="Year"
-                              style={{ width: "100%", marginBottom: "0.5rem" }}
-                            />
-                          </>
-                        )}
-                        <button
-                          onClick={() => {
-                            const updated = [...safe(localData.achievements)];
-                            updated.splice(i, 1);
-                            handleFieldChange("achievements", updated);
-                          }}
-                          style={{ color: "#dc2626", fontSize: "0.75rem" }}
-                        >
-                          Remove
-                        </button>
-                      </>
-                    ) : (
-                      <div>
-                        <p style={{ fontWeight: "600" }}>{typeof ach === "object" ? ach.title : ach}</p>
-                        {typeof ach === "object" && ach.description && <p style={{ fontSize: "0.9rem", color: "#4b5563" }}>{ach.description}</p>}
-                        {typeof ach === "object" && ach.year && <p style={{ fontSize: "0.85rem", color: "#6b7280" }}>{ach.year}</p>}
-                      </div>
-                    )}
-                  </div>
+                    <div key={i} style={{ marginTop: "0.75rem" }}>
+                      {editMode ? (
+                        <>
+                          <input
+                            value={(typeof ach === "object" ? ach.title : ach) || ""}
+                            onChange={(e) => {
+                              const updated = [...safe(localData.achievements)];
+                              if (typeof ach === "object") updated[i] = { ...ach, title: e.target.value };
+                              else updated[i] = e.target.value;
+                              handleFieldChange("achievements", updated);
+                            }}
+                            placeholder="Achievement Title"
+                            style={{ width: "100%", marginBottom: "0.5rem" }}
+                          />
+                          {typeof ach === "object" && (
+                            <>
+                              <textarea
+                                value={ach.description || ""}
+                                onChange={(e) => {
+                                  const updated = [...safe(localData.achievements)];
+                                  updated[i] = { ...ach, description: e.target.value };
+                                  handleFieldChange("achievements", updated);
+                                }}
+                                placeholder="Description"
+                                rows={2}
+                                style={{ width: "100%", marginBottom: "0.5rem" }}
+                              />
+                              <input
+                                value={ach.year || ""}
+                                onChange={(e) => {
+                                  const updated = [...safe(localData.achievements)];
+                                  updated[i] = { ...ach, year: e.target.value };
+                                  handleFieldChange("achievements", updated);
+                                }}
+                                placeholder="Year"
+                                style={{ width: "100%", marginBottom: "0.5rem" }}
+                              />
+                            </>
+                          )}
+                          <button
+                            onClick={() => {
+                              const updated = [...safe(localData.achievements)];
+                              updated.splice(i, 1);
+                              handleFieldChange("achievements", updated);
+                            }}
+                            style={{ color: "#dc2626", fontSize: "0.75rem" }}
+                          >
+                            Remove
+                          </button>
+                        </>
+                      ) : (
+                        <div>
+                          <p style={{ fontWeight: "600" }}>{typeof ach === "object" ? ach.title : ach}</p>
+                          {typeof ach === "object" && ach.description && <p style={{ fontSize: "0.9rem", color: "#4b5563" }}>{ach.description}</p>}
+                          {typeof ach === "object" && ach.year && <p style={{ fontSize: "0.85rem", color: "#6b7280" }}>{ach.year}</p>}
+                        </div>
+                      )}
+                    </div>
                   ) : null
                 ))}
                 {editMode && (
