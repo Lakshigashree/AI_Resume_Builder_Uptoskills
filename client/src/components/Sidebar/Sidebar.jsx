@@ -1,16 +1,17 @@
-/* src/components/Sidebar/Sidebar.jsx */
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useResume } from "../../context/ResumeContext";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
+import SectionInputModal from "./SectionInputModal";
 import { 
   FaChevronLeft, FaChevronRight, FaMagic, 
   FaUserCircle, FaFileAlt, FaPaintBrush, 
-  FaPlusCircle, FaCheckCircle, FaChartBar, FaTimes, FaSpinner 
+  FaPlusCircle, FaCheckCircle, FaChartBar, FaTimes, 
+  FaGraduationCap, FaBriefcase, FaUserEdit, FaUserTie, FaPlus, FaTrash
 } from "react-icons/fa";
 
-// Import template preview images
+// Image imports
 import temp1 from "../../assets/images/temp1.png";
 import temp2 from "../../assets/images/temp2.png";
 import temp3 from "../../assets/images/Temp3.jpg";
@@ -21,17 +22,10 @@ import temp7 from "../../assets/images/temp7.png";
 import temp8 from "../../assets/images/temp8.jpg";
 import temp9 from "../../assets/images/temp9.jpg";
 
-const enhancementOptions = [
-  "summary",
-  "experience",
-  "education",
-  "skills",
-  "achievements",
-  "projects",
-  "certifications",
-  "languages",
-  "interests",
-];
+const SECTION_DEFAULTS = {
+  summary: "", experience: [], education: [], skills: [], projects: [], 
+  achievements: [], certifications: [], languages: [], interests: [],
+};
 
 const templates = [
   { id: 1, name: "Radiant Edge", preview: temp1 },
@@ -66,105 +60,77 @@ const templates = [
   { id: 30, name: "Career Snapshot", preview: temp8 },
 ];
 
-const Sidebar = ({ resumeRef }) => {
+const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { resumeData, setResumeData } = useResume();
-  const { isAuthenticated } = useAuth();
+  const { resumeData, updateResumeData } = useResume();
   
   const [collapsed, setCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState(null); 
   const [currentTemplateId, setCurrentTemplateId] = useState(null);
-  const [enhancingSection, setEnhancingSection] = useState(null);
+  const [modalConfig, setModalConfig] = useState({ show: false, section: null });
 
-  // Sync current template from URL/Context
   useEffect(() => {
     const path = location.pathname;
     const templateMatch = path.match(/\/template(\d+)/);
-    const tId = templateMatch ? templateMatch[1] : (resumeData?.templateId || location.state?.templateId);
+    const tId = templateMatch ? templateMatch[1] : (resumeData?.templateId);
     if (tId) setCurrentTemplateId(parseInt(tId, 10));
   }, [location.pathname, resumeData]);
 
   const handleTabClick = (tab) => {
-    if (tab === 'ATS Score') {
-      navigate("/ats-score");
-      setActiveTab(null);
+    if (tab === 'ATS Score') navigate("/ats-score");
+    else setActiveTab(activeTab === tab ? null : tab);
+  };
+
+  const handleAddSection = (section) => {
+    const backup = resumeData.hiddenData?.[section];
+    
+    if (backup && (Array.isArray(backup) ? backup.length > 0 : (typeof backup === 'string' && backup.trim() !== ""))) {
+      const updated = { ...resumeData, [section]: backup };
+      if (updated.hiddenData) {
+        const newHidden = { ...updated.hiddenData };
+        delete newHidden[section];
+        updated.hiddenData = newHidden;
+      }
+      updateResumeData(updated);
+      toast.success(`${section} section restored!`);
+      return;
+    }
+
+    setModalConfig({ show: true, section });
+  };
+
+  const handleSaveModalData = (section, data) => {
+    const updated = { ...resumeData };
+    if (Array.isArray(SECTION_DEFAULTS[section])) {
+      updated[section] = [...(resumeData[section] || []), data];
     } else {
-      setActiveTab(activeTab === tab ? null : tab);
-      if (collapsed) setCollapsed(false);
+      updated[section] = data;
     }
+    updateResumeData(updated); 
+    setModalConfig({ show: false, section: null });
   };
 
-  const handleTemplateSelect = (templateId) => {
-    const dataToPass = { ...resumeData, templateId };
-    if (setResumeData) setResumeData(dataToPass);
-    try {
-      localStorage.setItem('resumeData', JSON.stringify(dataToPass));
-    } catch (e) { console.error('Storage failed', e); }
-    navigate(`/template${templateId}`, { state: { buildType: 'template', resumeData: dataToPass, templateId } });
-    toast.success(`Switched to Template ${templateId}`);
+  // SAFE REMOVE LOGIC: Set to empty valid type to prevent Template crashes
+  const handleRemoveSection = (section) => {
+    const currentData = resumeData[section];
+    const updated = { ...resumeData };
+    
+    updated.hiddenData = {
+      ...(resumeData.hiddenData || {}),
+      [section]: currentData
+    };
+
+    // Instead of deleting the key (which triggers template fallbacks), set to empty array/string
+    updated[section] = Array.isArray(SECTION_DEFAULTS[section]) ? [] : "";
+    
+    updateResumeData(updated);
+    toast.warn(`${section} section hidden.`);
   };
 
-  // --- FUNCTIONAL AI ENHANCE LOGIC ---
-  const handleEnhanceSection = async (section) => {
-    setEnhancingSection(section);
-    try {
-      let contentToSend = "";
-      if (section === "summary") {
-        contentToSend = resumeData.summary || "";
-      } else if (section === "skills") {
-        contentToSend = Array.isArray(resumeData.skills) ? resumeData.skills.join(", ") : (resumeData.skills || "");
-      } else {
-        // Fallback for sections like experience, education etc.
-        const sectionData = resumeData[section];
-        contentToSend = typeof sectionData === 'string' ? sectionData : JSON.stringify(sectionData || "");
-      }
-
-      if (!contentToSend || !contentToSend.trim() || contentToSend === '""') {
-        toast.info(`Please add content to ${section} first.`);
-        return;
-      }
-
-      // 1. Get the token from storage (standard for authenticated routes)
-      const token = localStorage.getItem("token"); 
-
-      // 2. Call the endpoint mounted in server.js
-      const response = await fetch("http://localhost:5000/api/ai/enhance", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // 3. Required for authenticateToken
-        },
-        body: JSON.stringify({ section, data: contentToSend }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.enhanced) {
-        const updated = { ...resumeData };
-        
-        // Handle specialized parsing for structured data sections if returned as JSON strings
-        if (["education", "personal", "languages"].includes(section)) {
-            try {
-                updated[section] = typeof result.enhanced === 'string' ? JSON.parse(result.enhanced) : result.enhanced;
-            } catch (e) {
-                updated[section] = result.enhanced;
-            }
-        } else {
-            updated[section] = result.enhanced;
-        }
-
-        setResumeData(updated);
-        toast.success(`${section.toUpperCase()} Enhanced successfully!`);
-      } else {
-        toast.error(result.error || "Enhancement failed. Check if you are logged in.");
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error("Could not connect to AI service.");
-    } finally {
-      setEnhancingSection(null);
-    }
+  const handleRoleChange = (role) => {
+    updateResumeData({ ...resumeData, resumeMode: role });
+    toast.info(`Profile mode set to: ${role.toUpperCase()}`);
   };
 
   const SidebarNavItem = ({ icon, label, color, tabKey }) => (
@@ -181,14 +147,15 @@ const Sidebar = ({ resumeRef }) => {
 
   return (
     <div className="flex h-screen sticky top-0 bg-white">
-      {/* PRIMARY ICON SIDEBAR */}
-      <div className={`border-r border-gray-200 p-4 flex flex-col items-center gap-4 transition-all duration-300 ${collapsed ? "w-20" : "w-28"}`} style={{ position: "relative" }}>
-        <button className="absolute -right-3 top-8 bg-white border border-gray-300 rounded-full p-1 shadow-md z-50 hover:bg-gray-100" onClick={() => setCollapsed(!collapsed)}>
+      <div className={`border-r border-gray-200 p-4 flex flex-col items-center gap-3 transition-all duration-300 ${collapsed ? "w-20" : "w-28"}`} style={{ position: "relative" }}>
+        <button className="absolute -right-3 top-8 bg-white border border-gray-300 rounded-full p-1 z-50 shadow-md hover:bg-gray-100" onClick={() => setCollapsed(!collapsed)}>
           {collapsed ? <FaChevronRight size={10} /> : <FaChevronLeft size={10} />}
         </button>
-        <div className="mb-4"><FaUserCircle size={collapsed ? 32 : 44} className="text-indigo-600" /></div>
-        <div className="flex flex-col gap-1 w-full">
+        <div className="mb-2"><FaUserCircle size={collapsed ? 32 : 44} className="text-indigo-600" /></div>
+        
+        <div className="flex flex-col gap-1 w-full overflow-y-auto no-scrollbar">
           <SidebarNavItem icon={<FaFileAlt />} label="Templates" color="text-blue-500" tabKey="Templates" />
+          <SidebarNavItem icon={<FaUserTie />} label="Roles" color="text-cyan-600" tabKey="Role Selector" />
           <SidebarNavItem icon={<FaPaintBrush />} label="Design" color="text-pink-500" tabKey="Design" />
           <SidebarNavItem icon={<FaPlusCircle />} label="Sections" color="text-orange-500" tabKey="Sections" />
           <SidebarNavItem icon={<FaCheckCircle />} label="Spelling" color="text-green-500" tabKey="Spell Check" />
@@ -197,7 +164,6 @@ const Sidebar = ({ resumeRef }) => {
         </div>
       </div>
 
-      {/* EXPANDABLE CONTENT DRAWER */}
       {activeTab && !collapsed && (
         <div className="w-80 bg-gray-50 border-r border-gray-200 shadow-xl z-40 animate-in slide-in-from-left duration-300">
           <div className="p-5 flex justify-between items-center border-b bg-white">
@@ -205,55 +171,89 @@ const Sidebar = ({ resumeRef }) => {
             <FaTimes className="text-gray-400 cursor-pointer hover:text-red-500 transition" onClick={() => setActiveTab(null)} />
           </div>
 
-          <div className="p-4 overflow-y-auto h-[calc(100vh-70px)]">
-            {/* TEMPLATES GALLERY */}
-            {activeTab === 'Templates' && (
-              <div className="grid grid-cols-2 gap-3 pb-10">
-                {templates.map((temp) => (
-                  <button 
-                    key={temp.id} 
-                    onClick={() => handleTemplateSelect(temp.id)} 
-                    className={`group relative rounded-lg border-2 transition-all duration-200 overflow-hidden ${currentTemplateId === temp.id ? "border-purple-500 shadow-md bg-white" : "border-gray-200 hover:border-purple-300 bg-white"}`}
-                  >
-                    <div className="aspect-[3/4] overflow-hidden">
-                      <img src={temp.preview} alt={temp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    </div>
-                    <div className="p-2 text-[9px] font-bold truncate text-gray-600 bg-white border-t border-gray-100">#{temp.id} {temp.name}</div>
-                    {currentTemplateId === temp.id && <div className="absolute top-1 right-1 w-2 h-2 bg-purple-500 rounded-full border border-white animate-pulse"></div>}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* AI DRAWER SECTION */}
-            {activeTab === 'AI' && (
+          <div className="p-4 overflow-y-auto h-[calc(100vh-70px)] no-scrollbar">
+            {activeTab === 'Role Selector' && (
               <div className="space-y-4">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Section to Enhance</p>
-                <div className="flex flex-col gap-2">
-                  {enhancementOptions.map((option) => (
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Experience Level</p>
+                <div className="flex flex-col gap-3">
+                  {[
+                    { id: 'fresher', label: 'Fresher', icon: <FaGraduationCap />, desc: 'Prioritizes Education & Projects' },
+                    { id: 'experienced', label: 'Experienced', icon: <FaBriefcase />, desc: 'Prioritizes Work History' },
+                    { id: 'custom', label: 'Custom', icon: <FaUserEdit />, desc: 'Manual section arrangement' }
+                  ].map((role) => (
                     <button
-                      key={option}
-                      onClick={() => handleEnhanceSection(option)}
-                      disabled={enhancingSection === option}
-                      className="w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-indigo-400 hover:shadow-sm transition-all group disabled:opacity-50"
+                      key={role.id}
+                      onClick={() => handleRoleChange(role.id)}
+                      className={`w-full flex items-start gap-4 p-4 rounded-xl border-2 transition-all ${
+                        resumeData?.resumeMode === role.id 
+                        ? "border-indigo-600 bg-indigo-50 shadow-sm" 
+                        : "border-white bg-white hover:border-indigo-200 shadow-sm"
+                      }`}
                     >
-                      <span className="text-xs font-semibold text-gray-700 capitalize">{option}</span>
-                      {enhancingSection === option ? (
-                        <FaSpinner className="animate-spin text-indigo-500" />
-                      ) : (
-                        <FaMagic className="text-gray-300 group-hover:text-indigo-500 transition-colors" />
-                      )}
+                      <div className={`p-3 rounded-lg ${resumeData?.resumeMode === role.id ? "bg-indigo-600 text-white" : "bg-indigo-50 text-indigo-600"}`}>
+                        {role.icon}
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-sm text-gray-800">{role.label}</p>
+                        <p className="text-[10px] text-gray-500 leading-tight mt-1">{role.desc}</p>
+                      </div>
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {activeTab === 'Design' && <div className="text-center py-10 text-gray-400 text-xs italic">Design & Formatting controls...</div>}
-            {activeTab === 'Sections' && <div className="text-center py-10 text-gray-400 text-xs italic">Add/Remove Sections logic...</div>}
-            {activeTab === 'Spell Check' && <div className="text-center py-10 text-gray-400 text-xs italic">Spell check analysis logic...</div>}
+            {activeTab === 'Sections' && (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  {Object.keys(SECTION_DEFAULTS).map((section) => {
+                    const data = resumeData[section];
+                    const isActive = Array.isArray(data) ? data.length > 0 : (!!data && data.trim() !== "");
+                    
+                    return (
+                      <div key={section} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-indigo-200 transition-colors">
+                        <span className="text-xs font-bold text-gray-700 capitalize">{section}</span>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleAddSection(section)} 
+                            className={`p-2 rounded-md transition-colors ${isActive ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-green-50 text-green-600 hover:bg-green-100"}`}
+                            disabled={isActive}
+                          >
+                            <FaPlus size={12} />
+                          </button>
+                          {isActive && (
+                            <button onClick={() => handleRemoveSection(section)} className="p-2 bg-red-50 text-red-600 rounded-md hover:bg-red-100">
+                              <FaTrash size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Templates' && (
+              <div className="grid grid-cols-2 gap-3 pb-10">
+                {templates.map((temp) => (
+                  <button key={temp.id} onClick={() => navigate(`/template${temp.id}`)} className={`group relative rounded-lg border-2 transition-all ${currentTemplateId === temp.id ? "border-purple-500 shadow-md" : "border-gray-200"}`}>
+                    <img src={temp.preview} alt={temp.name} className="w-full aspect-[3/4] object-cover" />
+                    <div className="p-2 text-[9px] font-bold text-gray-600 truncate bg-white">#{temp.id} {temp.name}</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+      )}
+
+      {modalConfig.show && (
+        <SectionInputModal 
+          section={modalConfig.section} 
+          onClose={() => setModalConfig({ show: false, section: null })}
+          onSave={handleSaveModalData}
+        />
       )}
     </div>
   );
