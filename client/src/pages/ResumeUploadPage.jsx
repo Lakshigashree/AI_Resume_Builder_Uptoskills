@@ -6,6 +6,7 @@ import Navbar from "../components/Navbar/Navbar.jsx";
 import resumeService from "../services/resumeService.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { toast } from 'react-toastify';
+import { getAtsScoreFromAI } from "../services/geminiService";
 
 const ResumeUploadPage = () => {
   const navigate = useNavigate();
@@ -19,6 +20,10 @@ const ResumeUploadPage = () => {
   const [warnings, setWarnings] = useState([]);
   const [parsedData, setParsedData] = useState(null);
   const [savedResumeId, setSavedResumeId] = useState(null);
+  // 2. 3 new state variables for ATS score function after 'savedResumeId' (around line 23)
+  const [jobDescription, setJobDescription] = useState("");
+  const [atsData, setAtsData] = useState(null);
+  const [isScoring, setIsScoring] = useState(false);
   const fileInputRef = useRef(null);
 
   // Enhanced file handling with immediate parsing, auto-save, and redirect
@@ -75,6 +80,8 @@ const ResumeUploadPage = () => {
       }
 
       // Automatically redirect to edit page with parsed data
+      // COMMENT THIS WHOLE BLOCK OUT TEMPORARILY for ATS feature:
+      /*
       setTimeout(() => {
         navigate('/edit-resume', {
           state: {
@@ -86,6 +93,7 @@ const ResumeUploadPage = () => {
           }
         });
       }, 2000); // Slightly longer delay to show save status
+     */
 
     } catch (error) {
       setError(error.message);
@@ -117,6 +125,30 @@ const ResumeUploadPage = () => {
     }
   };
 
+  //Add the Scoring Function for ATS after the handleDrop function and before the return statement
+  const handleCheckAtsScore = async () => {
+    if (!jobDescription.trim()) {
+      toast.error("Please paste a Job Description first!");
+      return;
+    }
+    if (!resumeContent) {
+      toast.error("Please upload a resume first!");
+      return;
+    }
+
+    setIsScoring(true);
+    try {
+      const result = await getAtsScoreFromAI(resumeContent, jobDescription);
+      if (result) {
+        setAtsData(result);
+        toast.success("ATS Analysis Complete!");
+      }
+    } catch (error) {
+      toast.error("Failed to calculate ATS score.");
+    } finally {
+      setIsScoring(false);
+    }
+  };
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #f97316 0%, #10b981 100%)' }}>
@@ -246,7 +278,70 @@ const ResumeUploadPage = () => {
                 </div>
               )}
             </div>
-          </div>
+          </div> {/* This </div> closes the "bg-white" card */}
+
+              {/* ATS Match Optimizer Card */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <Database className="mr-3 text-orange-500" size={24} />
+                ATS Match Optimizer
+              </h2>
+              
+              <textarea
+                className="w-full h-32 p-3 border-2 border-emerald-50 rounded-lg focus:border-emerald-500 focus:outline-none transition-all text-sm"
+                placeholder="Paste the target Job Description here to see your match score..."
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+              />
+
+              <button
+                onClick={handleCheckAtsScore}
+                disabled={isScoring || !resumeContent}
+                className="mt-4 w-full bg-gradient-to-r from-orange-500 to-emerald-600 text-white font-bold py-3 rounded-lg hover:shadow-lg transform hover:scale-[1.01] transition-all disabled:opacity-50"
+              >
+                {isScoring ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" size={20} /> Analyzing Match...
+                  </div>
+                ) : "🚀 Check ATS Match Score"}
+              </button>
+
+              {/* Animated Result Meter */}
+              {atsData && (
+                <div className="mt-8 border-t pt-6">
+                  <div className="flex flex-col items-center">
+                    <div className="relative w-32 h-32 mb-4">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="64" cy="64" r="58" stroke="#f3f4f6" strokeWidth="8" fill="transparent" />
+                        <circle
+                          cx="64" cy="64" r="58" stroke="#10b981" strokeWidth="8" fill="transparent"
+                          strokeDasharray="364.4"
+                          strokeDashoffset={364.4 - (364.4 * atsData.score) / 100}
+                          className="transition-all duration-1000 ease-out"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-black text-gray-800">{atsData.score}%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="w-full space-y-3">
+                      <h4 className="font-bold text-gray-700 text-sm">Critical Keywords Missing:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {atsData.missingKeywords?.map((kw, i) => (
+                          <span key={i} className="px-2 py-1 bg-red-50 text-red-600 border border-red-100 rounded text-xs font-medium">
+                            + {kw}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="p-3 bg-emerald-50 rounded-lg text-xs text-emerald-800 italic border border-emerald-100">
+                        "{atsData.analysis}"
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
           {/* Preview Section */}
           <div className="space-y-6">

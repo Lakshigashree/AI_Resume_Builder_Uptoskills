@@ -1,13 +1,31 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect } from "react";
 import Sidebar from "../Sidebar/Sidebar";
 import Navbar from "../Navbar/Navbar";
 import { useResume } from "../../context/ResumeContext";
-import { FaCog, FaPlus, FaTrash } from "react-icons/fa";
+import { 
+  FaPlus, FaTrash, FaPhone, FaEnvelope, 
+  FaLinkedin, FaGithub, FaGlobe, FaMapMarkerAlt 
+} from "react-icons/fa";
+import { toast } from 'react-toastify';
+import html2pdf from "html2pdf.js";
+
+// ---------- DATA HELPERS ----------
+const normalizeUrl = (url) => {
+  if (!url) return "";
+  const trimmed = url.trim();
+  return trimmed.startsWith("http") ? trimmed : "https://" + trimmed;
+};
+
+const safeArray = (v) => (Array.isArray(v) ? v : []);
+
+const hasText = (val) => (typeof val === "string" && val.trim().length > 0);
 
 const Template9 = () => {
   const resumeRef = useRef(null);
-  const { resumeData, setResumeData } = useResume();
+  const { resumeData, setResumeData, updateResumeData, sectionOrder } = useResume();
   const [editMode, setEditMode] = useState(false);
+  
   const [localData, setLocalData] = useState(() => ({
     ...resumeData,
     skills: resumeData?.skills || [],
@@ -17,1308 +35,403 @@ const Template9 = () => {
     certifications: resumeData?.certifications || [],
     languages: resumeData?.languages || [],
     projects: resumeData?.projects || [],
+    interests: resumeData?.interests || [],
   }));
-  const [activeSection, setActiveSection] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [visibleFields, setVisibleFields] = useState({
-    name: true,
-    designation: true,
-    contact: true,
-    summary: true,
-    skills: true,
-    experience: true,
-    achievements: true,
-    education: true,
-    courses: true,
-    languages: true,
-    projects: true,
-  });
-  const settingsRef = useRef(null);
 
+  const [activeSection, setActiveSection] = useState(null);
+
+  // Sync with global context
   useEffect(() => {
-    setLocalData({
-      ...resumeData,
-      skills: resumeData?.skills || [],
-      experience: resumeData?.experience || [],
-      achievements: resumeData?.achievements || [],
-      education: resumeData?.education || [],
-      certifications: resumeData?.certifications || [],
-      languages: resumeData?.languages || [],
-      projects: resumeData?.projects || [],
-    });
+    if (resumeData) {
+      setLocalData(JSON.parse(JSON.stringify(resumeData)));
+    }
   }, [resumeData]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target)) {
-        setShowSettings(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleFieldChange = (field, value) => {
-    const updatedData = { ...localData, [field]: value };
-    setLocalData(updatedData);
-    localStorage.setItem('resumeData', JSON.stringify(updatedData));
+  // ---------- RENDER SAFE HELPER (Prevents Object Crash) ----------
+  const renderSafe = (val) => {
+    if (!val) return "";
+    if (typeof val === "string") return val;
+    return val.title || val.name || val.degree || val.language || val.label || "";
   };
 
-  const handleArrayFieldChange = (section, index, key, value) => {
-    const updated = [...(localData[section] || [])];
-    if (updated[index]) {
-      updated[index] = { ...updated[index], [key]: value };
-      const updatedData = { ...localData, [section]: updated };
-      setLocalData(updatedData);
-      localStorage.setItem('resumeData', JSON.stringify(updatedData));
+  const hasContent = (key) => {
+    if (editMode) return true;
+    const val = localData[key];
+    if (Array.isArray(val)) return val.length > 0;
+    return hasText(val);
+  };
+
+  // ---------- HANDLERS ----------
+  const handleFieldChange = (field, value) => {
+    setLocalData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleArrayFieldUpdate = (section, index, value, key = null) => {
+    const updatedArray = [...(localData[section] || [])];
+    if (key) {
+      updatedArray[index] = { ...updatedArray[index], [key]: value };
+    } else {
+      updatedArray[index] = value;
+    }
+    setLocalData(prev => ({ ...prev, [section]: updatedArray }));
+  };
+
+  const addItem = (section, template) => {
+    setLocalData(prev => ({
+      ...prev,
+      [section]: [...(prev[section] || []), template]
+    }));
+  };
+
+  const removeItem = (section, index) => {
+    setLocalData(prev => ({
+      ...prev,
+      [section]: (prev[section] || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSave = async () => {
+    try {
+      if (typeof updateResumeData === 'function') {
+        await updateResumeData(localData);
+      } else if (typeof setResumeData === 'function') {
+        setResumeData(localData);
+      }
+      setEditMode(false);
+      setActiveSection(null);
+      toast.success("✅ Resume saved successfully!");
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error("❌ Failed to save changes.");
     }
   };
 
-  const handleSave = () => {
-    setResumeData(localData);
-    setEditMode(false);
-    setActiveSection(null);
-  };
-
   const handleCancel = () => {
-    setLocalData(resumeData);
+    setLocalData(JSON.parse(JSON.stringify(resumeData)));
     setEditMode(false);
     setActiveSection(null);
   };
 
-  const handleEnhance = (section) => {
-
+  const handleDownload = () => {
+    const options = {
+      margin: 10,
+      filename: `${localData.name || 'resume'}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 3, useCORS: true, letterRendering: true, width: 794 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      enableLinks: true
+    };
+    html2pdf().set(options).from(resumeRef.current).save();
   };
 
-  // Helper function to extract email from contact
-  const extractEmailFromContact = (contact) => {
-    const emailMatch = contact.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    return emailMatch ? emailMatch[0] : "example@gmail.com";
+  // ---------- STYLING OBJECTS ----------
+  const styles = {
+    sectionBox: { marginBottom: "2.5rem", position: "relative" },
+    headerText: { 
+      fontSize: "1.25rem", 
+      fontWeight: "bold", 
+      borderBottom: "3px solid #3b82f6", 
+      color: "#1e40af", 
+      paddingBottom: "8px", 
+      marginBottom: "18px", 
+      display: "flex", 
+      justifyContent: "space-between", 
+      alignItems: "center",
+      textTransform: "uppercase",
+      letterSpacing: "1px"
+    },
+    editContainer: { 
+      background: "#f8fafc", 
+      border: "1px dashed #3b82f6", 
+      padding: "20px", 
+      borderRadius: "8px", 
+      marginBottom: "15px" 
+    },
+    input: { 
+      width: "100%", 
+      padding: "10px", 
+      border: "1px solid #cbd5e1", 
+      borderRadius: "4px", 
+      marginBottom: "10px", 
+      fontSize: "0.95rem" 
+    },
+    addBtn: { 
+      background: "#1e40af", 
+      color: "white", 
+      border: "none", 
+      borderRadius: "4px", 
+      padding: "5px 12px", 
+      cursor: "pointer", 
+      fontSize: "0.85rem", 
+      display: "flex", 
+      alignItems: "center", 
+      gap: "6px" 
+    },
+    removeBtn: { 
+      color: "#ef4444", 
+      background: "none", 
+      border: "none", 
+      cursor: "pointer", 
+      fontSize: "0.9rem", 
+      fontWeight: "600", 
+      display: "flex", 
+      alignItems: "center", 
+      gap: "5px",
+      marginTop: "5px"
+    }
   };
 
-  const handleToggleField = (field) => {
-    setVisibleFields((prev) => ({ ...prev, [field]: !prev[field] }));
-  };
+  // ---------- SECTION COMPONENTS MAP ----------
 
-  const addSkill = () => {
-    setLocalData({ ...localData, skills: [...(localData.skills || []), "New Skill"] });
-  };
+  const sectionComponents = {
+    summary: hasContent("summary") && (
+      <div key="summary" style={styles.sectionBox} onClick={(e) => { e.stopPropagation(); setActiveSection("summary"); }}>
+        <h3 style={styles.headerText}>Professional Summary</h3>
+        {editMode ? (
+          <textarea 
+            value={localData.summary} 
+            onChange={(e) => handleFieldChange("summary", e.target.value)} 
+            style={{ ...styles.input, minHeight: "120px" }} 
+          />
+        ) : (
+          <p style={{ lineHeight: "1.7", color: "#374151", textAlign: "justify", margin: 0 }}>{localData.summary}</p>
+        )}
+      </div>
+    ),
 
-  const removeSkill = (index) => {
-    const updatedSkills = (localData.skills || []).filter((_, i) => i !== index);
-    setLocalData({ ...localData, skills: updatedSkills });
-  };
+    skills: hasContent("skills") && (
+      <div key="skills" style={styles.sectionBox} onClick={(e) => { e.stopPropagation(); setActiveSection("skills"); }}>
+        <div style={styles.headerText}>
+          <span>Skills</span>
+          {editMode && <button onClick={() => addItem("skills", "")} style={styles.addBtn}><FaPlus /> Add Skill</button>}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+          {safeArray(localData.skills).map((skill, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", background: "#eff6ff", padding: "6px 15px", borderRadius: "6px", border: "1px solid #bfdbfe" }}>
+              {editMode ? (
+                <input 
+                  value={renderSafe(skill)} 
+                  onChange={(e) => handleArrayFieldUpdate("skills", i, e.target.value)} 
+                  style={{ border: "none", background: "transparent", width: "100px", outline: "none" }} 
+                />
+              ) : <span style={{fontWeight: "600", color: "#1e40af"}}>{renderSafe(skill)}</span>}
+              {editMode && <FaTrash onClick={() => removeItem("skills", i)} style={{ color: "#ef4444", cursor: "pointer", fontSize: "12px" }} />}
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
 
-  const addExperience = () => {
-    setLocalData({
-      ...localData,
-      experience: [
-        ...(localData.experience || []),
-        {
-          title: "New Position",
-          companyName: "New Company",
-          date: "MM/YYYY - MM/YYYY",
-          companyLocation: "Location",
-          accomplishment: ["New accomplishment"]
-        },
-      ],
-    });
-  };
+    experience: hasContent("experience") && (
+      <div key="experience" style={styles.sectionBox} onClick={(e) => { e.stopPropagation(); setActiveSection("experience"); }}>
+        <div style={styles.headerText}>
+          <span>Work Experience</span>
+          {editMode && <button onClick={() => addItem("experience", { title: "", companyName: "", description: "", date: "" })} style={styles.addBtn}><FaPlus /> Add Block</button>}
+        </div>
+        {safeArray(localData.experience).map((exp, i) => (
+          <div key={i} style={editMode ? styles.editContainer : { marginBottom: "20px" }}>
+            {editMode ? (
+              <>
+                <input style={styles.input} value={renderSafe(exp.title)} onChange={(e) => handleArrayFieldUpdate("experience", i, e.target.value, "title")} placeholder="Job Title" />
+                <input style={styles.input} value={renderSafe(exp.companyName)} onChange={(e) => handleArrayFieldUpdate("experience", i, e.target.value, "companyName")} placeholder="Company Name" />
+                <input style={styles.input} value={renderSafe(exp.date)} onChange={(e) => handleArrayFieldUpdate("experience", i, e.target.value, "date")} placeholder="Duration" />
+                <textarea style={{ ...styles.input, minHeight: "80px" }} value={renderSafe(exp.description)} onChange={(e) => handleArrayFieldUpdate("experience", i, e.target.value, "description")} placeholder="Responsibilities" />
+                <button onClick={() => removeItem("experience", i)} style={styles.removeBtn}><FaTrash /> Remove Block</button>
+              </>
+            ) : (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
+                  <span style={{fontSize: "1.1rem"}}>{renderSafe(exp.title)}</span>
+                  <span style={{color: "#6b7280"}}>{exp.date}</span>
+                </div>
+                <div style={{ color: "#2563eb", fontWeight: "600", marginBottom: "5px" }}>{renderSafe(exp.companyName)}</div>
+                <p style={{ fontSize: "0.95rem", color: "#4b5563", lineHeight: "1.6" }}>{renderSafe(exp.description)}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    ),
 
-  const removeExperience = (index) => {
-    setLocalData({
-      ...localData,
-      experience: (localData.experience || []).filter((_, i) => i !== index),
-    });
-  };
+    education: hasContent("education") && (
+      <div key="education" style={styles.sectionBox} onClick={(e) => { e.stopPropagation(); setActiveSection("education"); }}>
+        <div style={styles.headerText}>
+          <span>Education</span>
+          {editMode && <button onClick={() => addItem("education", { degree: "", institution: "", duration: "" })} style={styles.addBtn}><FaPlus /> Add Education</button>}
+        </div>
+        {safeArray(localData.education).map((edu, i) => (
+          <div key={i} style={editMode ? styles.editContainer : { marginBottom: "15px" }}>
+            {editMode ? (
+              <>
+                <input style={styles.input} value={renderSafe(edu.degree)} onChange={(e) => handleArrayFieldUpdate("education", i, e.target.value, "degree")} placeholder="Degree" />
+                <input style={styles.input} value={renderSafe(edu.institution)} onChange={(e) => handleArrayFieldUpdate("education", i, e.target.value, "institution")} placeholder="Institution" />
+                <input style={styles.input} value={renderSafe(edu.duration)} onChange={(e) => handleArrayUpdate("education", i, e.target.value, "duration")} placeholder="Year" />
+                <button onClick={() => removeItem("education", i)} style={styles.removeBtn}><FaTrash /> Remove Block</button>
+              </>
+            ) : (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontWeight: "bold", fontSize: "1.05rem" }}>{renderSafe(edu.degree)}</div>
+                  <div style={{ color: "#4b5563" }}>{renderSafe(edu.institution)}</div>
+                </div>
+                <div style={{ fontWeight: "bold", color: "#1e40af" }}>{edu.duration}</div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    ),
 
-  const addAchievement = () => {
-    setLocalData({
-      ...localData,
-      achievements: [...(localData.achievements || []), "New Achievement"],
-    });
-  };
+    projects: hasContent("projects") && (
+      <div key="projects" style={styles.sectionBox} onClick={(e) => { e.stopPropagation(); setActiveSection("projects"); }}>
+        <div style={styles.headerText}>
+          <span>Projects</span>
+          {editMode && <button onClick={() => addItem("projects", { name: "", description: "", link: "" })} style={styles.addBtn}><FaPlus /> Add Project</button>}
+        </div>
+        {safeArray(localData.projects).map((proj, i) => (
+          <div key={i} style={editMode ? styles.editContainer : { marginBottom: "20px" }}>
+            {editMode ? (
+              <>
+                <input style={{...styles.input, fontWeight: "bold"}} value={renderSafe(proj.name)} onChange={(e) => handleArrayFieldUpdate("projects", i, e.target.value, "name")} placeholder="Project Name" />
+                <textarea style={styles.input} value={renderSafe(proj.description)} onChange={(e) => handleArrayFieldUpdate("projects", i, e.target.value, "description")} placeholder="Details" />
+                <input style={styles.input} value={renderSafe(proj.link)} onChange={(e) => handleArrayFieldUpdate("projects", i, e.target.value, "link")} placeholder="Live Link" />
+                <button onClick={() => removeItem("projects", i)} style={styles.removeBtn}><FaTrash /> Remove Block</button>
+              </>
+            ) : (
+              <div>
+                <div style={{ fontWeight: "bold", fontSize: "1.1rem" }}>{renderSafe(proj.name)}</div>
+                <p style={{ margin: "5px 0", color: "#4b5563" }}>{renderSafe(proj.description)}</p>
+                {proj.link && <a href={normalizeUrl(proj.link)} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontWeight: "bold", fontSize: "0.85rem" }}>View Project</a>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    ),
 
-  const removeAchievement = (index) => {
-    setLocalData({
-      ...localData,
-      achievements: (localData.achievements || []).filter((_, i) => i !== index),
-    });
-  };
+    certifications: hasContent("certifications") && (
+      <div key="certifications" style={styles.sectionBox}>
+        <div style={styles.headerText}>
+          <span>Certifications</span>
+          {editMode && <button onClick={() => addItem("certifications", { title: "" })} style={styles.addBtn}><FaPlus /> Add</button>}
+        </div>
+        {safeArray(localData.certifications).map((cert, i) => (
+          <div key={i} style={editMode ? styles.editContainer : { marginBottom: "8px" }}>
+            {editMode ? (
+              <>
+                <input style={styles.input} value={renderSafe(cert.title)} onChange={(e) => handleArrayFieldUpdate("certifications", i, e.target.value, "title")} />
+                <button onClick={() => removeItem("certifications", i)} style={styles.removeBtn}><FaTrash /> Remove</button>
+              </>
+            ) : <div style={{fontWeight: "500"}}>• {renderSafe(cert.title)}</div>}
+          </div>
+        ))}
+      </div>
+    ),
 
-  const addEducation = () => {
-    setLocalData({
-      ...localData,
-      education: [
-        ...(localData.education || []),
-        { degree: "New Degree", duration: "MM/YYYY - MM/YYYY", institution: "New School", location: "Location" },
-      ],
-    });
-  };
+    achievements: hasContent("achievements") && (
+      <div key="achievements" style={styles.sectionBox}>
+        <div style={styles.headerText}>
+          <span>Achievements</span>
+          {editMode && <button onClick={() => addItem("achievements", "")} style={styles.addBtn}><FaPlus /> Add</button>}
+        </div>
+        <ul style={{ paddingLeft: "1.2rem", margin: 0 }}>
+          {safeArray(localData.achievements).map((ach, i) => (
+            <li key={i} style={editMode ? {listStyle: "none"} : { marginBottom: "8px" }}>
+              {editMode ? (
+                <div style={styles.editContainer}>
+                  <input style={styles.input} value={renderSafe(ach)} onChange={(e) => handleArrayFieldUpdate("achievements", i, e.target.value)} />
+                  <button onClick={() => removeItem("achievements", i)} style={styles.removeBtn}><FaTrash /> Remove</button>
+                </div>
+              ) : <span style={{color: "#374151"}}>{renderSafe(ach)}</span>}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ),
 
-  const removeEducation = (index) => {
-    setLocalData({
-      ...localData,
-      education: (localData.education || []).filter((_, i) => i !== index),
-    });
-  };
+    languages: hasContent("languages") && (
+      <div key="languages" style={styles.sectionBox}>
+        <h3 style={styles.headerText}>Languages</h3>
+        {editMode ? (
+          <input value={localData.languages?.join(", ")} onChange={(e) => handleFieldChange("languages", e.target.value.split(","))} style={styles.input} />
+        ) : <p style={{fontWeight: "500"}}>{localData.languages?.join(" • ")}</p>}
+      </div>
+    ),
 
-  const addCourse = () => {
-    setLocalData({
-      ...localData,
-      certifications: [
-        ...(localData.certifications || []),
-        { title: "New Course", issuer: "Issuer", date: "MM/YYYY" },
-      ],
-    });
-  };
-
-  const removeCourse = (index) => {
-    setLocalData({
-      ...localData,
-      certifications: (localData.certifications || []).filter((_, i) => i !== index),
-    });
-  };
-
-  const addLanguage = () => {
-    setLocalData({ ...localData, languages: [...(localData.languages || []), "New Language"] });
-  };
-
-  const removeLanguage = (index) => {
-    const updatedLanguages = (localData.languages || []).filter((_, i) => i !== index);
-    setLocalData({ ...localData, languages: updatedLanguages });
-  };
-
-  const addProject = () => {
-    setLocalData({
-      ...localData,
-      projects: [
-        ...(localData.projects || []),
-        {
-          name: "New Project",
-          description: "Description here",
-          technologies: ["Tech1", "Tech2"],
-          link: "https://example.com",
-          github: "https://github.com/example"
-        },
-      ],
-    });
-  };
-
-  const removeProject = (index) => {
-    setLocalData({
-      ...localData,
-      projects: (localData.projects || []).filter((_, i) => i !== index),
-    });
+    interests: hasContent("interests") && (
+      <div key="interests" style={styles.sectionBox}>
+        <h3 style={styles.headerText}>Interests</h3>
+        {editMode ? (
+          <input value={localData.interests?.join(", ")} onChange={(e) => handleFieldChange("interests", e.target.value.split(","))} style={styles.input} />
+        ) : <p style={{color: "#4b5563"}}>{localData.interests?.join(" • ")}</p>}
+      </div>
+    ),
   };
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f3f4f6" }}>
       <Navbar />
       <div style={{ display: "flex" }}>
-        <Sidebar onEnhance={handleEnhance} resumeRef={resumeRef} />
+        <Sidebar onDownload={handleDownload} resumeRef={resumeRef} />
+        <div style={{ flexGrow: 1, padding: "2.5rem", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div ref={resumeRef} style={{ backgroundColor: "#fff", width: "794px", minHeight: "1123px", padding: "60px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.15)", position: "relative", boxSizing: "border-box" }}>
+            
+            {/* Header Section */}
+            <div style={{ textAlign: "center", borderBottom: "4px solid #1e40af", paddingBottom: "25px", marginBottom: "35px" }}>
+              {editMode ? (
+                <div style={{ display: "grid", gap: "10px", maxWidth: "600px", margin: "0 auto" }}>
+                  <input style={{ fontSize: "2.5rem", fontWeight: "bold", textAlign: "center", border: "1px solid #3b82f6" }} value={localData.name} onChange={(e) => handleFieldChange("name", e.target.value)} />
+                  <input style={{ fontSize: "1.2rem", textAlign: "center", color: "#3b82f6", fontWeight: "600" }} value={localData.role} onChange={(e) => handleFieldChange("role", e.target.value)} />
+                </div>
+              ) : (
+                <>
+                  <h1 style={{ fontSize: "3rem", fontWeight: "900", margin: 0, textTransform: "uppercase", letterSpacing: "2px" }}>{localData.name}</h1>
+                  <h2 style={{ fontSize: "1.4rem", color: "#3b82f6", margin: "8px 0", fontWeight: "700", textTransform: "uppercase" }}>{localData.role}</h2>
+                </>
+              )}
 
-        <div style={{
-          flexGrow: 1,
-          padding: "1rem",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          width: "100%",
-          transition: "margin-left 0.3s ease-in-out"
-        }}>
-          <div
-            ref={resumeRef}
-            style={{
-              backgroundColor: "#fff",
-              color: "#111827",
-              maxWidth: "1000px",
-              width: "100%",
-              padding: "2rem",
-              boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-              borderRadius: "0.5rem",
-              position: "relative"
-            }}
-            onClick={() => {
-              setActiveSection(null);
-              setShowSettings(false);
-            }}
-          >
-            {/* Settings Toggle */}
-            {activeSection === "name" && (
-              <FaCog
-                style={{
-                  position: "absolute",
-                  top: "2.5rem",
-                  right: "2.5rem",
-                  cursor: "pointer",
-                  color: "#6b7280",
-                  fontSize: "1.25rem"
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowSettings(!showSettings);
-                }}
-              />
-            )}
-
-            {/* Settings Popup */}
-            {showSettings && (
-              <div
-                ref={settingsRef}
-                style={{
-                  position: "absolute",
-                  top: "3rem",
-                  right: "1rem",
-                  padding: "1rem",
-                  backgroundColor: "#f3f4f6",
-                  borderRadius: "0.5rem",
-                  boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-                  zIndex: 10
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {["name", "designation", "contact", "summary", "skills", "experience", "achievements", "education", "courses", "languages", "projects"].map((field) => (
-                  <div key={field} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                    <span style={{ fontSize: "0.875rem", fontWeight: "500" }}>
-                      Show {field.charAt(0).toUpperCase() + field.slice(1)}
-                    </span>
-                    <label style={{ position: "relative", display: "inline-block", width: "2.5rem", height: "1.25rem" }}>
-                      <input
-                        type="checkbox"
-                        checked={visibleFields[field]}
-                        onChange={() => handleToggleField(field)}
-                        style={{ opacity: 0, width: 0, height: 0 }}
-                      />
-                      <span
-                        style={{
-                          position: "absolute",
-                          cursor: "pointer",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          borderRadius: "9999px",
-                          transition: "0.4s",
-                          backgroundColor: visibleFields[field] ? "#3b82f6" : "#d1d5db"
-                        }}
-                      >
-                        <span
-                          style={{
-                            position: "absolute",
-                            left: "0.125rem",
-                            top: "0.125rem",
-                            backgroundColor: "#fff",
-                            width: "0.875rem",
-                            height: "0.875rem",
-                            borderRadius: "50%",
-                            transition: "0.4s",
-                            transform: visibleFields[field] ? "translateX(1.25rem)" : "translateX(0)"
-                          }}
-                        />
-                      </span>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Header */}
-            <div
-              style={{ display: "flex", justifyContent: "space-between", marginBottom: "1.5rem", textAlign: "left", paddingBottom: "1.5rem" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveSection("name");
-              }}
-            >
-              <div>
-                {visibleFields.name && (
-                  editMode ? (
-                    <input
-                      type="text"
-                      value={localData.name || ""}
-                      onChange={(e) => handleFieldChange("name", e.target.value)}
-                      style={{
-                        fontSize: "1.875rem",
-                        fontWeight: "bold",
-                        display: "block",
-                        border: "1px solid #d1d5db",
-                        padding: "0.25rem",
-                        borderRadius: "0.25rem",
-                        width: "100%"
-                      }}
-                    />
-                  ) : (
-                    <h1 style={{ fontSize: "1.875rem", fontWeight: "bold", margin: 0 }}>{resumeData.name}</h1>
-                  )
-                )}
-                {visibleFields.designation && (
-                  editMode ? (
-                    <input
-                      type="text"
-                      value={localData.role || ""}
-                      onChange={(e) => handleFieldChange("role", e.target.value)}
-                      style={{
-                        fontSize: "1.125rem",
-                        color: "#6b7280",
-                        border: "1px solid #d1d5db",
-                        padding: "0.25rem",
-                        borderRadius: "0.25rem",
-                        marginTop: "0.5rem",
-                        width: "100%"
-                      }}
-                    />
-                  ) : (
-                    <h2 style={{ fontSize: "1.125rem", color: "#6b7280", margin: "0.5rem 0 0 0" }}>{resumeData.role}</h2>
-                  )
-                )}
-              </div>
-              <div style={{ textAlign: "right" }}>
-                {visibleFields.contact && (
-                  editMode ? (
-                    <div>
-                      <input
-                        type="text"
-                        value={localData.phone || ""}
-                        onChange={(e) => handleFieldChange("phone", e.target.value)}
-                        placeholder="Phone"
-                        style={{
-                          display: "block",
-                          marginBottom: "0.25rem",
-                          border: "1px solid #d1d5db",
-                          padding: "0.25rem",
-                          borderRadius: "0.25rem"
-                        }}
-                      />
-                      <input
-                        type="text"
-                        value={localData.email || ""}
-                        onChange={(e) => handleFieldChange("email", e.target.value)}
-                        placeholder="Email"
-                        style={{
-                          display: "block",
-                          marginBottom: "0.25rem",
-                          border: "1px solid #d1d5db",
-                          padding: "0.25rem",
-                          borderRadius: "0.25rem"
-                        }}
-                      />
-                      <input
-                        type="text"
-                        value={localData.location || ""}
-                        onChange={(e) => handleFieldChange("location", e.target.value)}
-                        placeholder="Location"
-                        style={{
-                          display: "block",
-                          marginBottom: "0.25rem",
-                          border: "1px solid #d1d5db",
-                          padding: "0.25rem",
-                          borderRadius: "0.25rem"
-                        }}
-                      />
-                      <input
-                        type="text"
-                        value={localData.linkedin || ""}
-                        onChange={(e) => handleFieldChange("linkedin", e.target.value)}
-                        placeholder="LinkedIn"
-                        style={{
-                          display: "block",
-                          marginBottom: "0.25rem",
-                          border: "1px solid #d1d5db",
-                          padding: "0.25rem",
-                          borderRadius: "0.25rem"
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      {resumeData.phone && <p style={{ margin: "0.125rem 0" }}>{resumeData.phone}</p>}
-                      {resumeData.email && <div style={{ margin: "0.125rem 0" }}><a href={`mailto:${resumeData.email}`} style={{ textDecoration: "none", color: "inherit" }}>{resumeData.email}</a></div>}
-                      {resumeData.location && <p style={{ margin: "0.125rem 0" }}>{resumeData.location}</p>}
-                      {resumeData.linkedin && <div style={{ margin: "0.125rem 0" }}><a href={resumeData.linkedin} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", color: "inherit" }}>Linked In</a></div>}
-                    </div>
-                  )
-                )}
+              {/* 5 Editable Redirecting Links */}
+              <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "20px", marginTop: "20px", fontSize: "0.95rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FaPhone color="#2563eb" />
+                  {editMode ? <input style={{width:"120px"}} value={localData.phone} onChange={(e) => handleFieldChange("phone", e.target.value)} /> : <a href={`tel:${localData.phone}`} style={{textDecoration: "none", color: "#4b5563"}}>{localData.phone}</a>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FaEnvelope color="#2563eb" />
+                  {editMode ? <input value={localData.email} onChange={(e) => handleFieldChange("email", e.target.value)} /> : <a href={`mailto:${localData.email}`} style={{textDecoration: "none", color: "#4b5563"}}>{localData.email}</a>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FaLinkedin color="#2563eb" />
+                  {editMode ? <input value={localData.linkedin} onChange={(e) => handleFieldChange("linkedin", e.target.value)} /> : <a href={normalizeUrl(localData.linkedin)} target="_blank" rel="noreferrer" style={{textDecoration: "none", color: "#4b5563"}}>LinkedIn</a>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FaGithub color="#2563eb" />
+                  {editMode ? <input value={localData.github} onChange={(e) => handleFieldChange("github", e.target.value)} /> : <a href={normalizeUrl(localData.github)} target="_blank" rel="noreferrer" style={{textDecoration: "none", color: "#4b5563"}}>GitHub</a>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FaGlobe color="#2563eb" />
+                  {editMode ? <input value={localData.portfolio} onChange={(e) => handleFieldChange("portfolio", e.target.value)} /> : <a href={normalizeUrl(localData.portfolio)} target="_blank" rel="noreferrer" style={{textDecoration: "none", color: "#4b5563"}}>Portfolio</a>}
+                </div>
               </div>
             </div>
 
-            {/* Summary */}
-            {visibleFields.summary && (
-              <div
-                style={{ marginBottom: "1.5rem" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSection("profile");
-                }}
-              >
-                <h3 style={{ fontWeight: "bold", fontSize: "1.125rem", textTransform: "uppercase", borderBottom: "1px solid #e5e7eb", paddingBottom: "0.5rem", margin: "0 0 0.5rem 0" }}>
-                  Profile
-                </h3>
-                {editMode ? (
-                  <textarea
-                    value={localData.summary || ""}
-                    onChange={(e) => handleFieldChange("summary", e.target.value)}
-                    style={{
-                      width: "100%",
-                      minHeight: "4rem",
-                      border: "1px solid #d1d5db",
-                      padding: "0.5rem",
-                      borderRadius: "0.25rem",
-                      color: "#374151"
-                    }}
-                  />
-                ) : (
-                  <div style={{ color: "#374151", marginTop: "0.5rem" }}>
-                    {resumeData.summary}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* DYNAMIC SECTIONS LIST */}
+            <div>{sectionOrder.map((key) => sectionComponents[key] || null)}</div>
 
-            {/* Skills */}
-            {visibleFields.skills && (
-              <div
-                style={{ marginBottom: "1.5rem" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSection("skills");
-                }}
-              >
-                <h3 style={{ fontWeight: "bold", fontSize: "1.125rem", textTransform: "uppercase", borderBottom: "1px solid #e5e7eb", paddingBottom: "0.5rem", margin: "0 0 0.5rem 0" }}>
-                  Key Skills
-                </h3>
-                <ul style={{ color: "#374151", marginTop: "0.5rem", paddingLeft: "1.25rem" }}>
-                  {(localData.skills || []).map((skill, index) => (
-                    <li key={index} style={{ marginBottom: "0.25rem" }}>
-                      {editMode ? (
-                        <input
-                          type="text"
-                          value={skill || ""}
-                          onChange={(e) => {
-                            const updatedSkills = [...(localData.skills || [])];
-                            updatedSkills[index] = e.target.value;
-                            setLocalData({ ...localData, skills: updatedSkills });
-                          }}
-                          style={{
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%"
-                          }}
-                        />
-                      ) : (
-                        skill
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                {editMode && activeSection === "skills" && (
-                  <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.75rem" }}>
-                    <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                        padding: "0.5rem 0.75rem",
-                        backgroundColor: "#16a34a",
-                        color: "white",
-                        borderRadius: "0.375rem",
-                        border: "none",
-                        cursor: "pointer",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
-                      }}
-                      onClick={addSkill}
-                    >
-                      <FaPlus /> New Skill
-                    </button>
-                    <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                        padding: "0.5rem 0.75rem",
-                        backgroundColor: "#dc2626",
-                        color: "white",
-                        borderRadius: "0.375rem",
-                        border: "none",
-                        cursor: "pointer",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
-                      }}
-                      onClick={() => removeSkill((localData.skills || []).length - 1)}
-                    >
-                      <FaTrash /> Remove
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Experience */}
-            {visibleFields.experience && (
-              <div
-                style={{ marginBottom: "1.5rem" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSection("experience");
-                }}
-              >
-                <h3 style={{ fontWeight: "bold", fontSize: "1.125rem", textTransform: "uppercase", borderBottom: "1px solid #e5e7eb", paddingBottom: "0.5rem", margin: "0 0 0.5rem 0" }}>
-                  Work Experience
-                </h3>
-                {(localData.experience || []).map((exp, index) => (
-                  <div key={index} style={{ padding: "1rem", marginBottom: "1rem", backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", borderRadius: "0.5rem" }}>
-                    {editMode ? (
-                      <>
-                        <input
-                          type="text"
-                          value={exp.title || ""}
-                          onChange={(e) => handleArrayFieldChange("experience", index, "title", e.target.value)}
-                          placeholder="Job Title"
-                          style={{
-                            fontSize: "1.125rem",
-                            fontWeight: "600",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={exp.companyName || ""}
-                          onChange={(e) => handleArrayFieldChange("experience", index, "companyName", e.target.value)}
-                          placeholder="Company Name"
-                          style={{
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={exp.date || ""}
-                          onChange={(e) => handleArrayFieldChange("experience", index, "date", e.target.value)}
-                          placeholder="Duration"
-                          style={{
-                            color: "#374151",
-                            fontSize: "0.875rem",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={exp.companyLocation || ""}
-                          onChange={(e) => handleArrayFieldChange("experience", index, "companyLocation", e.target.value)}
-                          placeholder="Location"
-                          style={{
-                            color: "#374151",
-                            fontSize: "0.875rem",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <textarea
-                          value={exp.accomplishment ? exp.accomplishment.join("\n") : ""}
-                          onChange={(e) => handleArrayFieldChange("experience", index, "accomplishment", e.target.value.split("\n"))}
-                          placeholder="Accomplishments (one per line)"
-                          style={{
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
-                            padding: "0.5rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            minHeight: "3rem"
-                          }}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: "1.125rem", fontWeight: "600" }}>{exp.title}</div>
-                        <div style={{ color: "#374151", marginTop: "0.5rem" }}>{exp.companyName}</div>
-                        <div style={{ color: "#374151", marginTop: "0.5rem", fontSize: "0.875rem" }}>
-                          {exp.date} - {exp.companyLocation}
-                        </div>
-                        <ul style={{ color: "#374151", marginTop: "0.5rem", paddingLeft: "1.25rem" }}>
-                          {exp.accomplishment && exp.accomplishment.map((acc, accIndex) => (
-                            <li key={accIndex} style={{ marginBottom: "0.25rem" }}>{acc}</li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                    {editMode && activeSection === "experience" && (
-                      <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
-                        <button
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            padding: "0.5rem 1rem",
-                            borderRadius: "9999px",
-                            backgroundColor: "#10b981",
-                            color: "white",
-                            border: "none",
-                            cursor: "pointer",
-                            boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
-                          }}
-                          onClick={addExperience}
-                        >
-                          <FaPlus /> New Experience
-                        </button>
-                        <button
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            padding: "0.25rem 0.75rem",
-                            backgroundColor: "#dc2626",
-                            color: "white",
-                            borderRadius: "0.375rem",
-                            border: "none",
-                            cursor: "pointer",
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
-                          }}
-                          onClick={() => removeExperience(index)}
-                        >
-                          <FaTrash /> Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Achievements */}
-            {visibleFields.achievements && (
-              <div
-                style={{ marginBottom: "1.5rem" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSection("achievements");
-                }}
-              >
-                <h3 style={{ fontWeight: "bold", fontSize: "1.125rem", textTransform: "uppercase", borderBottom: "1px solid #e5e7eb", paddingBottom: "0.5rem", margin: "0 0 0.5rem 0" }}>
-                  Achievements
-                </h3>
-                <ul style={{ color: "#374151", marginTop: "0.5rem", paddingLeft: "1.25rem" }}>
-                  {(localData.achievements || []).map((achievement, index) => (
-                    <li key={index} style={{ marginBottom: "0.25rem" }}>
-                      {editMode ? (
-                        <input
-                          type="text"
-                          value={achievement || ""}
-                          onChange={(e) => {
-                            const updated = [...(localData.achievements || [])];
-                            updated[index] = e.target.value;
-                            setLocalData({ ...localData, achievements: updated });
-                          }}
-                          style={{
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%"
-                          }}
-                        />
-                      ) : (
-                        achievement
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                {editMode && activeSection === "achievements" && (
-                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
-                    <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                        padding: "0.5rem 1rem",
-                        borderRadius: "9999px",
-                        backgroundColor: "#10b981",
-                        color: "white",
-                        border: "none",
-                        cursor: "pointer",
-                        boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
-                      }}
-                      onClick={addAchievement}
-                    >
-                      <FaPlus /> New Achievement
-                    </button>
-                    <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                        padding: "0.25rem 0.75rem",
-                        backgroundColor: "#dc2626",
-                        color: "white",
-                        borderRadius: "0.375rem",
-                        border: "none",
-                        cursor: "pointer",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
-                      }}
-                      onClick={() => removeAchievement((localData.achievements || []).length - 1)}
-                    >
-                      <FaTrash /> Remove
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Education */}
-            {visibleFields.education && (
-              <div
-                style={{ marginBottom: "1.5rem" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSection("education");
-                }}
-              >
-                <h3 style={{ fontWeight: "bold", fontSize: "1.125rem", textTransform: "uppercase", borderBottom: "1px solid #e5e7eb", paddingBottom: "0.5rem", margin: "0 0 0.5rem 0" }}>
-                  Education
-                </h3>
-                {(localData.education || []).map((edu, index) => (
-                  <div key={index} style={{ padding: "1rem", marginBottom: "1rem", backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", borderRadius: "0.5rem" }}>
-                    {editMode ? (
-                      <>
-                        <input
-                          type="text"
-                          value={edu.degree || ""}
-                          onChange={(e) => handleArrayFieldChange("education", index, "degree", e.target.value)}
-                          placeholder="Degree"
-                          style={{
-                            fontSize: "1.125rem",
-                            fontWeight: "600",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={edu.institution || ""}
-                          onChange={(e) => handleArrayFieldChange("education", index, "institution", e.target.value)}
-                          placeholder="Institution"
-                          style={{
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={edu.duration || ""}
-                          onChange={(e) => handleArrayFieldChange("education", index, "duration", e.target.value)}
-                          placeholder="Duration"
-                          style={{
-                            color: "#374151",
-                            fontSize: "0.875rem",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={edu.location || ""}
-                          onChange={(e) => handleArrayFieldChange("education", index, "location", e.target.value)}
-                          placeholder="Location"
-                          style={{
-                            color: "#374151",
-                            fontSize: "0.875rem",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%"
-                          }}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: "1.125rem", fontWeight: "600" }}>{edu.degree}</div>
-                        <div style={{ color: "#374151", marginTop: "0.5rem" }}>{edu.institution}</div>
-                        <div style={{ color: "#374151", marginTop: "0.5rem", fontSize: "0.875rem" }}>
-                          {edu.duration} - {edu.location}
-                        </div>
-                      </>
-                    )}
-                    {editMode && activeSection === "education" && (
-                      <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
-                        <button
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            padding: "0.5rem 1rem",
-                            borderRadius: "9999px",
-                            backgroundColor: "#10b981",
-                            color: "white",
-                            border: "none",
-                            cursor: "pointer",
-                            boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
-                          }}
-                          onClick={addEducation}
-                        >
-                          <FaPlus /> New Education
-                        </button>
-                        <button
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            padding: "0.25rem 0.75rem",
-                            backgroundColor: "#dc2626",
-                            color: "white",
-                            borderRadius: "0.375rem",
-                            border: "none",
-                            cursor: "pointer",
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
-                          }}
-                          onClick={() => removeEducation(index)}
-                        >
-                          <FaTrash /> Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Certifications/Courses */}
-            {visibleFields.courses && (
-              <div
-                style={{ marginBottom: "1.5rem" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSection("courses");
-                }}
-              >
-                <h3 style={{ fontWeight: "bold", fontSize: "1.125rem", textTransform: "uppercase", borderBottom: "1px solid #e5e7eb", paddingBottom: "0.5rem", margin: "0 0 0.5rem 0" }}>
-                  Courses
-                </h3>
-                {(localData.certifications || []).map((course, index) => (
-                  <div key={index} style={{ padding: "1rem", marginBottom: "1rem", backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", borderRadius: "0.5rem" }}>
-                    {editMode ? (
-                      <>
-                        <input
-                          type="text"
-                          value={course.title || ""}
-                          onChange={(e) => handleArrayFieldChange("certifications", index, "title", e.target.value)}
-                          placeholder="Course Title"
-                          style={{
-                            fontSize: "1.125rem",
-                            fontWeight: "600",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={course.issuer || ""}
-                          onChange={(e) => handleArrayFieldChange("certifications", index, "issuer", e.target.value)}
-                          placeholder="Issued By"
-                          style={{
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={course.date || ""}
-                          onChange={(e) => handleArrayFieldChange("certifications", index, "date", e.target.value)}
-                          placeholder="Date"
-                          style={{
-                            color: "#374151",
-                            fontSize: "0.875rem",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%"
-                          }}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: "1.125rem", fontWeight: "600" }}>{course.title}</div>
-                        <div style={{ color: "#374151", marginTop: "0.5rem" }}>{course.issuer}</div>
-                        <div style={{ color: "#374151", marginTop: "0.5rem", fontSize: "0.875rem" }}>
-                          {course.date}
-                        </div>
-                      </>
-                    )}
-                    {editMode && activeSection === "courses" && (
-                      <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
-                        <button
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            padding: "0.5rem 1rem",
-                            borderRadius: "9999px",
-                            backgroundColor: "#10b981",
-                            color: "white",
-                            border: "none",
-                            cursor: "pointer",
-                            boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
-                          }}
-                          onClick={addCourse}
-                        >
-                          <FaPlus /> New Course
-                        </button>
-                        <button
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            padding: "0.25rem 0.75rem",
-                            backgroundColor: "#dc2626",
-                            color: "white",
-                            borderRadius: "0.375rem",
-                            border: "none",
-                            cursor: "pointer",
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
-                          }}
-                          onClick={() => removeCourse(index)}
-                        >
-                          <FaTrash /> Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Languages */}
-            {visibleFields.languages && (
-              <div
-                style={{ marginBottom: "1.5rem" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSection("languages");
-                }}
-              >
-                <h3 style={{ fontWeight: "bold", fontSize: "1.125rem", textTransform: "uppercase", borderBottom: "1px solid #e5e7eb", paddingBottom: "0.5rem", margin: "0 0 0.5rem 0" }}>
-                  Languages
-                </h3>
-                <ul style={{ color: "#374151", marginTop: "0.5rem", paddingLeft: "1.25rem" }}>
-                  {(localData.languages || []).map((language, index) => (
-                    <li key={index} style={{ marginBottom: "0.25rem" }}>
-                      {editMode ? (
-                        <input
-                          type="text"
-                          value={language || ""}
-                          onChange={(e) => {
-                            const updatedLanguages = [...(localData.languages || [])];
-                            updatedLanguages[index] = e.target.value;
-                            setLocalData({ ...localData, languages: updatedLanguages });
-                          }}
-                          style={{
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%"
-                          }}
-                        />
-                      ) : (
-                        language
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                {editMode && activeSection === "languages" && (
-                  <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.75rem" }}>
-                    <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                        padding: "0.25rem 0.75rem",
-                        backgroundColor: "#16a34a",
-                        color: "white",
-                        borderRadius: "0.375rem",
-                        border: "none",
-                        cursor: "pointer",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
-                      }}
-                      onClick={addLanguage}
-                    >
-                      <FaPlus /> New Language
-                    </button>
-                    <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                        padding: "0.25rem 0.75rem",
-                        backgroundColor: "#dc2626",
-                        color: "white",
-                        borderRadius: "0.375rem",
-                        border: "none",
-                        cursor: "pointer",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
-                      }}
-                      onClick={() => removeLanguage((localData.languages || []).length - 1)}
-                    >
-                      <FaTrash /> Remove
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Projects */}
-            {visibleFields.projects && (
-              <div
-                style={{ marginBottom: "1.5rem" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSection("projects");
-                }}
-              >
-                <h3 style={{ fontWeight: "bold", fontSize: "1.125rem", textTransform: "uppercase", borderBottom: "1px solid #e5e7eb", paddingBottom: "0.5rem", margin: "0 0 0.5rem 0" }}>
-                  Projects
-                </h3>
-                {(localData.projects || []).map((project, index) => (
-                  <div key={index} style={{ padding: "1rem", marginBottom: "1rem", backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", borderRadius: "0.5rem" }}>
-                    {editMode ? (
-                      <>
-                        <input
-                          type="text"
-                          value={project.name || ""}
-                          onChange={(e) => handleArrayFieldChange("projects", index, "name", e.target.value)}
-                          placeholder="Project Name"
-                          style={{
-                            fontSize: "1.125rem",
-                            fontWeight: "600",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <textarea
-                          value={project.description || ""}
-                          onChange={(e) => handleArrayFieldChange("projects", index, "description", e.target.value)}
-                          placeholder="Project Description"
-                          style={{
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
-                            padding: "0.5rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            minHeight: "3rem",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={project.technologies ? project.technologies.join(", ") : ""}
-                          onChange={(e) => handleArrayFieldChange("projects", index, "technologies", e.target.value.split(",").map(t => t.trim()))}
-                          placeholder="Technologies (comma separated)"
-                          style={{
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={project.link || ""}
-                          onChange={(e) => handleArrayFieldChange("projects", index, "link", e.target.value)}
-                          placeholder="Live Link"
-                          style={{
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%",
-                            marginBottom: "0.5rem"
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={project.github || ""}
-                          onChange={(e) => handleArrayFieldChange("projects", index, "github", e.target.value)}
-                          placeholder="GitHub Link"
-                          style={{
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
-                            padding: "0.25rem",
-                            borderRadius: "0.25rem",
-                            width: "100%"
-                          }}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: "1.125rem", fontWeight: "600" }}>{project.name}</div>
-                        <div style={{ color: "#374151", marginTop: "0.5rem" }}>{project.description}</div>
-                        <div style={{ color: "#374151", marginTop: "0.5rem", fontSize: "0.875rem" }}>
-                          Technologies: {project.technologies ? project.technologies.join(", ") : ""}
-                        </div>
-                        <div style={{ color: "#374151", marginTop: "0.5rem", fontSize: "0.875rem" }}>
-                          <a href={project.link} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", textDecoration: "underline" }}>
-                            Live Demo
-                          </a>
-                          {" | "}
-                          <a href={project.github} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", textDecoration: "underline" }}>
-                            GitHub
-                          </a>
-                        </div>
-                      </>
-                    )}
-                    {editMode && activeSection === "projects" && (
-                      <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
-                        <button
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            padding: "0.5rem 1rem",
-                            borderRadius: "9999px",
-                            backgroundColor: "#10b981",
-                            color: "white",
-                            border: "none",
-                            cursor: "pointer",
-                            boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
-                          }}
-                          onClick={addProject}
-                        >
-                          <FaPlus /> New Project
-                        </button>
-                        <button
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            padding: "0.25rem 0.75rem",
-                            backgroundColor: "#dc2626",
-                            color: "white",
-                            borderRadius: "0.375rem",
-                            border: "none",
-                            cursor: "pointer",
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
-                          }}
-                          onClick={() => removeProject(index)}
-                        >
-                          <FaTrash /> Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Edit/Save/Cancel Buttons */}
-          <div style={{ marginTop: "1rem", textAlign: "center" }}>
-            {editMode ? (
-              <>
-                <button
-                  onClick={handleSave}
-                  style={{
-                    backgroundColor: "#10b981",
-                    color: "white",
-                    padding: "0.5rem 1rem",
-                    borderRadius: "0.375rem",
-                    marginRight: "0.5rem",
-                    border: "none",
-                    cursor: "pointer"
-                  }}
-                >
-                  Save
-                </button>
-                <button
-                  onClick={handleCancel}
-                  style={{
-                    backgroundColor: "#6b7280",
-                    color: "white",
-                    padding: "0.5rem 1rem",
-                    borderRadius: "0.375rem",
-                    border: "none",
-                    cursor: "pointer"
-                  }}
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setEditMode(true)}
-                style={{
-                  backgroundColor: "#3b82f6",
-                  color: "white",
-                  padding: "0.5rem 1rem",
-                  borderRadius: "0.375rem",
-                  border: "none",
-                  cursor: "pointer"
-                }}
-              >
-                Edit
-              </button>
-            )}
+            {/* ACTION BUTTONS (Excluded from PDF) */}
+            <div data-html2canvas-ignore="true" style={{ textAlign: "center", marginTop: "50px", paddingBottom: "40px" }}>
+              {editMode ? (
+                <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
+                  <button onClick={handleSave} style={{ backgroundColor: "#10b981", color: "white", padding: "14px 40px", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "bold" }}>SAVE CHANGES</button>
+                  <button onClick={handleCancel} style={{ backgroundColor: "#6b7280", color: "white", padding: "14px 40px", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "bold" }}>CANCEL</button>
+                </div>
+              ) : (
+                <button onClick={() => setEditMode(true)} style={{ backgroundColor: "#1e40af", color: "white", padding: "16px 80px", borderRadius: "12px", border: "none", cursor: "pointer", fontWeight: "bold", fontSize: "1.2rem" }}>EDIT RESUME</button>
+              )}
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Media Queries for Responsive Design */}
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .main-content {
-            padding: 1rem !important;
-          }
-        }
-        
-        @media (min-width: 1024px) {
-          .main-content {
-            margin-left: 20rem !important;
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-            padding-top: 2.5rem !important;
-            padding-bottom: 2.5rem !important;
-          }
-        }
-        
-        /* Ensure text wraps properly */
-        input, textarea {
-          overflow-wrap: break-word;
-          word-break: break-word;
-          white-space: normal;
-        }
-      `}</style>
     </div>
   );
 };

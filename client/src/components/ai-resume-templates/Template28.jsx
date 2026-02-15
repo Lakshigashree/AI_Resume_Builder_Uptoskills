@@ -1,8 +1,10 @@
 import React, { useRef, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Sidebar from "../Sidebar/Sidebar";
 import Navbar from "../Navbar/Navbar";
 import { useResume } from "../../context/ResumeContext";
-import html2pdf from "html2pdf.js";
+import resumeService from "../../services/resumeService";
+import { toast } from "react-toastify";
 
 const Template28 = () => {
   const resumeRef = useRef(null);
@@ -11,20 +13,62 @@ const Template28 = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [editMode, setEditMode] = useState(false);
 
+  const location = useLocation();
+
   useEffect(() => {
     setLocalData(resumeData || {});
   }, [resumeData]);
 
+  // Auto-download trigger when coming from My Resumes
+  useEffect(() => {
+    if (location.state?.triggerDownload && resumeRef.current && !isDownloading) {
+      // Small delay to ensure styles are fully loaded in the browser
+      setTimeout(() => {
+        handleDownloadPDF();
+      }, 500);
+    }
+  }, [location.state, resumeRef, isDownloading]);
+
   // --- Download
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
+    if (!resumeRef.current) return;
+
     setIsDownloading(true);
-    setTimeout(() => {
-      if (resumeRef.current) {
-        // html2pdf options can be added if needed
-        html2pdf().from(resumeRef.current).save();
+    const loadingToast = toast.loading("Generating ATS-friendly PDF...");
+
+    try {
+      // Clean up the HTML for printing
+      const clone = resumeRef.current.cloneNode(true);
+      const hideElements = clone.querySelectorAll('.hide-in-pdf, button');
+      hideElements.forEach(el => el.remove());
+
+      const htmlContent = clone.innerHTML;
+      const resumeName = localData.fullName || "Resume";
+      const filename = `${resumeName.replace(/\s+/g, '_')}_Template28.pdf`;
+
+      const result = await resumeService.generatePDF(htmlContent, filename);
+
+      if (result.success) {
+        toast.update(loadingToast, {
+          render: "✅ PDF downloaded successfully!",
+          type: "success",
+          isLoading: false,
+          autoClose: 3000
+        });
+      } else {
+        throw new Error(result.error);
       }
+    } catch (err) {
+      console.error("Download Error:", err);
+      toast.update(loadingToast, {
+        render: "❌ Failed to generate PDF.",
+        type: "error",
+        isLoading: false,
+        autoClose: 3000
+      });
+    } finally {
       setIsDownloading(false);
-    }, 150);
+    }
   };
 
   // --- Save / Edit toggles

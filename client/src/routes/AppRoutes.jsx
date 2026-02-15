@@ -1,4 +1,4 @@
-/* src/routes/AppRoutes.jsx */
+// src/routes/AppRoutes.jsx
 import { Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import AdminProtectedRoute from "./AdminProtectedRoute.jsx";
@@ -14,27 +14,47 @@ const Loading = () => (
 );
 
 /* ------------------ Lazy Pages ------------------ */
+// Home & Auth
 const Home = lazy(() => import("../pages/Home.jsx"));
 const Login = lazy(() => import("../pages/auth/Login.jsx"));
 const SignUp = lazy(() => import("../pages/auth/SignUp.jsx"));
+
+// Admin
 const AdminPage = lazy(() => import("../pages/AdminPage.jsx"));
+
+// Resume Flow
 const TemplatePage = lazy(() => import("../pages/TemplatePage.jsx"));
 const MyResumesPage = lazy(() => import("../pages/MyResumesPage.jsx"));
 const ResumeUploadPage = lazy(() => import("../pages/ResumeUploadPage.jsx"));
 const ResumeEditPage = lazy(() => import("../pages/ResumeEditPage.jsx"));
-const ATSScorePage = lazy(() => import("../pages/ATSScorePage.jsx"));
+
+// Build Flow
 const BuildOption = lazy(() => import("../pages/BuildOption.jsx"));
 
-/* Details Pages */
-const PersonalDetails = lazy(() => import("../pages/details/PersonalDetails.jsx"));
-const WorkExperience = lazy(() => import("../pages/details/WorkExperience.jsx"));
-const Languages = lazy(() => import("../pages/details/Languages.jsx"));
-const Skills = lazy(() => import("../pages/details/Skills.jsx"));
-const Education = lazy(() => import("../pages/details/Education.jsx"));
-const Projects = lazy(() => import("../pages/details/Projects.jsx"));
-const OtherDetails = lazy(() => import("../pages/details/OtherDetails.jsx"));
+// Details Pages
+const PersonalDetails = lazy(() =>
+  import("../pages/details/PersonalDetails.jsx")
+);
+const WorkExperience = lazy(() =>
+  import("../pages/details/WorkExperience.jsx")
+);
+const Languages = lazy(() =>
+  import("../pages/details/Languages.jsx")
+);
+const Skills = lazy(() =>
+  import("../pages/details/Skills.jsx")
+);
+const Education = lazy(() =>
+  import("../pages/details/Education.jsx")
+);
+const Projects = lazy(() =>
+  import("../pages/details/Projects.jsx")
+);
+const OtherDetails = lazy(() =>
+  import("../pages/details/OtherDetails.jsx")
+);
 
-/* Resume Templates */
+// Resume Templates
 import Template1 from "../components/ai-resume-templates/Template1.jsx";
 import Template2 from "../components/ai-resume-templates/Template2.jsx";
 import Template3 from "../components/ai-resume-templates/Template3.jsx";
@@ -65,18 +85,16 @@ import Template27 from "../components/ai-resume-templates/Template27.jsx";
 import Template28 from "../components/ai-resume-templates/Template28.jsx";
 import Template29 from "../components/ai-resume-templates/Template29.jsx";
 import Template30 from "../components/ai-resume-templates/Template30.jsx";
+import Template31 from "../components/ai-resume-templates/Template31.jsx";
 
+// ATS Score Checker
+const ATSScorePage = lazy(() => import("../pages/ATSScorePage.jsx"));
+
+// 404
 const NotFound = lazy(() => import("../pages/NotFound.jsx"));
 
 /* ------------------ Routes ------------------ */
-const AppRoutes = ({ resumeRef }) => {
-  // Helper to wrap templates so they attach to the Ref
-  const TemplateWrapper = ({ Component }) => (
-    <div ref={resumeRef} className="resume-capture-area bg-white">
-      <Component />
-    </div>
-  );
-
+const AppRoutes = () => {
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
@@ -104,37 +122,38 @@ const AppRoutes = ({ resumeRef }) => {
         <Route path="/details/projects" element={<Projects />} />
         <Route path="/details/other" element={<OtherDetails />} />
 
-        {/* -------- Templates (Functional for Download/Share) -------- */}
-        <Route path="/template1" element={<TemplateWrapper Component={Template1} />} />
-        <Route path="/template2" element={<TemplateWrapper Component={Template2} />} />
-        <Route path="/template3" element={<TemplateWrapper Component={Template3} />} />
-        <Route path="/template4" element={<TemplateWrapper Component={Template4} />} />
-        <Route path="/template5" element={<TemplateWrapper Component={Template5} />} />
-        <Route path="/template6" element={<TemplateWrapper Component={Template6} />} />
-        <Route path="/template7" element={<TemplateWrapper Component={Template7} />} />
-        <Route path="/template8" element={<TemplateWrapper Component={Template8} />} />
-        <Route path="/template9" element={<TemplateWrapper Component={Template9} />} />
-        <Route path="/template10" element={<TemplateWrapper Component={Template10} />} />
-        <Route path="/template11" element={<TemplateWrapper Component={Template11} />} />
-        <Route path="/template12" element={<TemplateWrapper Component={Template12} />} />
-        <Route path="/template13" element={<TemplateWrapper Component={Template13} />} />
-        <Route path="/template14" element={<TemplateWrapper Component={Template14} />} />
-        <Route path="/template15" element={<TemplateWrapper Component={Template15} />} />
-        <Route path="/template16" element={<TemplateWrapper Component={Template16} />} />
-        <Route path="/template17" element={<TemplateWrapper Component={Template17} />} />
-        <Route path="/template18" element={<TemplateWrapper Component={Template18} />} />
-        <Route path="/template19" element={<TemplateWrapper Component={Template19} />} />
-        <Route path="/template20" element={<TemplateWrapper Component={Template20} />} />
-        <Route path="/template21" element={<TemplateWrapper Component={Template21} />} />
-        <Route path="/template22" element={<TemplateWrapper Component={Template22} />} />
-        <Route path="/template23" element={<TemplateWrapper Component={Template23} />} />
-        <Route path="/template24" element={<TemplateWrapper Component={Template24} />} />
-        <Route path="/template25" element={<TemplateWrapper Component={Template25} />} />
-        <Route path="/template26" element={<TemplateWrapper Component={Template26} />} />
-        <Route path="/template27" element={<TemplateWrapper Component={Template27} />} />
-        <Route path="/template28" element={<TemplateWrapper Component={Template28} />} />
-        <Route path="/template29" element={<TemplateWrapper Component={Template29} />} />
-        <Route path="/template30" element={<TemplateWrapper Component={Template30} />} />
+        {/* -------- Templates -------- */}
+        <Route path="/template1" element={<Template1 />} />
+        <Route path="/template2" element={<Template2 />} />
+        <Route path="/template3" element={<Template3 />} />
+        <Route path="/template4" element={<Template4 />} />
+        <Route path="/template5" element={<Template5 />} />
+        <Route path="/template6" element={<Template6 />} />
+        <Route path="/template7" element={<Template7 />} />
+        <Route path="/template8" element={<Template8 />} />
+        <Route path="/template9" element={<Template9 />} />
+        <Route path="/template10" element={<Template10 />} />
+        <Route path="/template11" element={<Template11 />} />
+        <Route path="/template12" element={<Template12 />} />
+        <Route path="/template13" element={<Template13 />} />
+        <Route path="/template14" element={<Template14 />} />
+        <Route path="/template15" element={<Template15 />} />
+        <Route path="/template16" element={<Template16 />} />
+        <Route path="/template17" element={<Template17 />} />
+        <Route path="/template18" element={<Template18 />} />
+        <Route path="/template19" element={<Template19 />} />
+        <Route path="/template20" element={<Template20 />} />
+        <Route path="/template21" element={<Template21 />} />
+        <Route path="/template22" element={<Template22 />} />
+        <Route path="/template23" element={<Template23 />} />
+        <Route path="/template24" element={<Template24 />} />
+        <Route path="/template25" element={<Template25 />} />
+        <Route path="/template26" element={<Template26 />} />
+        <Route path="/template27" element={<Template27 />} />
+        <Route path="/template28" element={<Template28 />} />
+        <Route path="/template29" element={<Template29 />} />
+        <Route path="/template30" element={<Template30 />} />
+        <Route path="/template31" element={<Template31 />} />
 
         {/* -------- Admin (Protected) -------- */}
         <Route

@@ -144,205 +144,211 @@ const Template22 = () => {
 
             {/* Summary */}
             {editMode || resumeData.summary?.trim() ? (
-            <section>
-              <h1 style={{color:"red", fontWeight:"700", fontSize:"20px"}}>Summary</h1>
-              {editMode ? (
-                <textarea
-                  value={localData.summary}
-                  onChange={(e) => handleFieldChange("summary", e.target.value)}
-                  rows={4}
-                  style={{ width: "100%", marginTop: "0.5rem", padding: "0.5rem" }}
-                />
-              ) : (
-                <p>{resumeData.summary}</p>
-              )}
-            </section>
+              <section>
+                <h1 style={{ color: "red", fontWeight: "700", fontSize: "20px" }}>Summary</h1>
+                {editMode ? (
+                  <textarea
+                    value={localData.summary}
+                    onChange={(e) => handleFieldChange("summary", e.target.value)}
+                    rows={4}
+                    style={{ width: "100%", marginTop: "0.5rem", padding: "0.5rem" }}
+                  />
+                ) : (
+                  <p>{resumeData.summary}</p>
+                )}
+              </section>
             ) : null}
 
             <hr style={{ margin: "1rem 0", borderColor: "#ccc" }} />
 
             {/* Contact */}
-            {editMode || ["location","phone", "email", "linkedin"].some(field => resumeData[field]?.trim()) ? (
-            <section>
-              <h3 style={{ fontWeight:"700", fontSize:"20px"}}>Contact</h3>
-              {["location", "phone", "email", "linkedin"].map((field) =>
-                editMode ? (
-                  <input
-                    key={field}
-                    value={localData[field]}
-                    onChange={(e) => handleFieldChange(field, e.target.value)}
-                    placeholder={field}
-                    style={{ width: "100%", marginTop: "0.25rem", borderBottom: "1px solid #ccc" }}
-                  />
-                ) : (
-                  resumeData[field]?.trim()&&(
-                  <p key={field}>{resumeData[field]}</p>
-                )
-              )
-              )}
-            </section>
-           ) : null}
+            {editMode || ["location", "phone", "email", "linkedin", "github"].some(field => resumeData[field]?.trim()) ? (
+              <section>
+                <h3 style={{ fontWeight: "700", fontSize: "20px" }}>Contact</h3>
+                {["location", "phone", "email", "linkedin", "github"].map((field) =>
+                  editMode ? (
+                    <input
+                      key={field}
+                      value={localData[field]}
+                      onChange={(e) => handleFieldChange(field, e.target.value)}
+                      placeholder={field}
+                      style={{ width: "100%", marginTop: "0.25rem", borderBottom: "1px solid #ccc" }}
+                    />
+                  ) : (
+                    resumeData[field]?.trim() && (
+                      field === 'github' || field === 'linkedin' ? (
+                        <a key={field} href={resumeData[field]} target="_blank" rel="noopener noreferrer" style={{ display: 'block', color: 'blue', textDecoration: 'none' }}>
+                          {resumeData[field]}
+                        </a>
+                      ) : (
+                        <p key={field}>{resumeData[field]}</p>
+                      )
+                    )
+                  )
+                )}
+              </section>
+            ) : null}
 
             <hr style={{ margin: "1rem 0", borderColor: "#ccc" }} />
 
             {/* Skills */}
             {editMode || (resumeData.skills && resumeData.skills.length > 0) ? (
-            <section>
-              <h3 style={{color:"red", fontWeight:"700", fontSize:"20px"}}>Skills</h3>
-              {editMode ? (
-                <textarea
-                  value={localData.skills?.join(", ") || ""}
-                  onChange={(e) =>
-                    handleFieldChange(
-                      "skills",
-                      e.target.value.split(",").map((s) => s.trim())
-                    )
-                  }
-                  style={{ width: "100%", marginTop: "0.5rem", padding: "0.5rem" }}
-                />
-              ) : (
-                <ul>
-                  {resumeData.skills?.map((skill, i) => (
-                    <li key={i}>{skill}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-            ): null}
+              <section>
+                <h3 style={{ color: "red", fontWeight: "700", fontSize: "20px" }}>Skills</h3>
+                {editMode ? (
+                  <textarea
+                    value={localData.skills?.join(", ") || ""}
+                    onChange={(e) =>
+                      handleFieldChange(
+                        "skills",
+                        e.target.value.split(",").map((s) => s.trim())
+                      )
+                    }
+                    style={{ width: "100%", marginTop: "0.5rem", padding: "0.5rem" }}
+                  />
+                ) : (
+                  <ul>
+                    {resumeData.skills?.map((skill, i) => (
+                      <li key={i}>{skill}</li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : null}
 
             <hr style={{ margin: "1rem 0", borderColor: "#ccc" }} />
 
             {/* Education */}
-            {editMode || (resumeData.education && resumeData.education.length > 0)? (
-            <section>
-              <h3 style={{fontWeight:"700", fontSize:"20px"}}>Education</h3>
-              {localData.education.map((edu, i) => (
-                <div key={i}>
-                  {editMode ? (
-                    <>
-                      <input
-                        value={edu.degree}
-                        onChange={(e) => {
-                          const updated = [...localData.education];
-                          updated[i].degree = e.target.value;
-                          handleFieldChange("education", updated);
-                        }}
-                        style={{ width: "100%" }}
-                      />
-                      <input
-                        value={edu.institution}
-                        onChange={(e) => {
-                          const updated = [...localData.education];
-                          updated[i].institution = e.target.value;
-                          handleFieldChange("education", updated);
-                        }}
-                        style={{ width: "100%" }}
-                      />
-                      <input
-                        value={edu.duration}
-                        onChange={(e) => {
-                          const updated = [...localData.education];
-                          updated[i].duration = e.target.value;
-                          handleFieldChange("education", updated);
-                        }}
-                        style={{ width: "100%" }}
-                      />
-                      <button onClick={() => removeEducation(i)} style={{ color: "red" }}>
-                        Remove
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <p>{edu.degree}</p>
-                      <p>{edu.institution} ({edu.duration})</p>
-                    </>
-                  )}
-                </div>
-              ))}
-              {editMode && (
-                <button onClick={addEducation} style={{ marginTop: "0.5rem", color: "#2563eb" }}>
-                  + Add Education
-                </button>
-              )}
-            </section>
-            ):null}
+            {editMode || (resumeData.education && resumeData.education.length > 0) ? (
+              <section>
+                <h3 style={{ fontWeight: "700", fontSize: "20px" }}>Education</h3>
+                {localData.education.map((edu, i) => (
+                  <div key={i}>
+                    {editMode ? (
+                      <>
+                        <input
+                          value={edu.degree}
+                          onChange={(e) => {
+                            const updated = [...localData.education];
+                            updated[i].degree = e.target.value;
+                            handleFieldChange("education", updated);
+                          }}
+                          style={{ width: "100%" }}
+                        />
+                        <input
+                          value={edu.institution}
+                          onChange={(e) => {
+                            const updated = [...localData.education];
+                            updated[i].institution = e.target.value;
+                            handleFieldChange("education", updated);
+                          }}
+                          style={{ width: "100%" }}
+                        />
+                        <input
+                          value={edu.duration}
+                          onChange={(e) => {
+                            const updated = [...localData.education];
+                            updated[i].duration = e.target.value;
+                            handleFieldChange("education", updated);
+                          }}
+                          style={{ width: "100%" }}
+                        />
+                        <button onClick={() => removeEducation(i)} style={{ color: "red" }}>
+                          Remove
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p>{edu.degree}</p>
+                        <p>{edu.institution} ({edu.duration})</p>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {editMode && (
+                  <button onClick={addEducation} style={{ marginTop: "0.5rem", color: "#2563eb" }}>
+                    + Add Education
+                  </button>
+                )}
+              </section>
+            ) : null}
 
             <hr style={{ margin: "1rem 0", borderColor: "#ccc" }} />
 
             {/* Experience */}
             {editMode || (resumeData.experience && resumeData.experience.length > 0) ? (
-            <section>
-              <h3 style={{color:"red", fontWeight:"700", fontSize:"20px"}}>Experience</h3>
-              {localData.experience.map((exp, i) => (
-                <div key={i}>
-                  {editMode ? (
-                    <>
-                      <input
-                        value={exp.title}
-                        onChange={(e) => {
-                          const updated = [...localData.experience];
-                          updated[i].title = e.target.value;
-                          handleFieldChange("experience", updated);
-                        }}
-                        style={{ width: "100%" }}
-                      />
-                      <input
-                        value={exp.companyName}
-                        onChange={(e) => {
-                          const updated = [...localData.experience];
-                          updated[i].companyName = e.target.value;
-                          handleFieldChange("experience", updated);
-                        }}
-                        style={{ width: "100%" }}
-                      />
-                      <input
-                        value={exp.date}
-                        onChange={(e) => {
-                          const updated = [...localData.experience];
-                          updated[i].date = e.target.value;
-                          handleFieldChange("experience", updated);
-                        }}
-                        style={{ width: "100%" }}
-                      />
-                      <textarea
-                        value={exp.accomplishment.join("\n")}
-                        onChange={(e) => {
-                          const updated = [...localData.experience];
-                          updated[i].accomplishment = e.target.value
-                            .split("\n")
-                            .filter(Boolean);
-                          handleFieldChange("experience", updated);
-                        }}
-                        rows={3}
-                        style={{ width: "100%" }}
-                      />
-                      <button onClick={() => removeExperience(i)} style={{ color: "red" }}>
-                        Remove
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <p>{exp.title} at {exp.companyName}</p>
-                      <p>{exp.date}</p>
-                      <ul>
-                        {exp.accomplishment.map((item, j) => (
-                          <li key={j}>{item}</li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                </div>
-              ))}
-              {editMode && (
-                <button onClick={addExperience} style={{ marginTop: "0.5rem", color: "#2563eb" }}>
-                  + Add Experience
-                </button>
-              )}
-            </section>
-            ):null}
+              <section>
+                <h3 style={{ color: "red", fontWeight: "700", fontSize: "20px" }}>Experience</h3>
+                {localData.experience.map((exp, i) => (
+                  <div key={i}>
+                    {editMode ? (
+                      <>
+                        <input
+                          value={exp.title}
+                          onChange={(e) => {
+                            const updated = [...localData.experience];
+                            updated[i].title = e.target.value;
+                            handleFieldChange("experience", updated);
+                          }}
+                          style={{ width: "100%" }}
+                        />
+                        <input
+                          value={exp.companyName}
+                          onChange={(e) => {
+                            const updated = [...localData.experience];
+                            updated[i].companyName = e.target.value;
+                            handleFieldChange("experience", updated);
+                          }}
+                          style={{ width: "100%" }}
+                        />
+                        <input
+                          value={exp.date}
+                          onChange={(e) => {
+                            const updated = [...localData.experience];
+                            updated[i].date = e.target.value;
+                            handleFieldChange("experience", updated);
+                          }}
+                          style={{ width: "100%" }}
+                        />
+                        <textarea
+                          value={exp.accomplishment.join("\n")}
+                          onChange={(e) => {
+                            const updated = [...localData.experience];
+                            updated[i].accomplishment = e.target.value
+                              .split("\n")
+                              .filter(Boolean);
+                            handleFieldChange("experience", updated);
+                          }}
+                          rows={3}
+                          style={{ width: "100%" }}
+                        />
+                        <button onClick={() => removeExperience(i)} style={{ color: "red" }}>
+                          Remove
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p>{exp.title} at {exp.companyName}</p>
+                        <p>{exp.date}</p>
+                        <ul>
+                          {exp.accomplishment.map((item, j) => (
+                            <li key={j}>{item}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {editMode && (
+                  <button onClick={addExperience} style={{ marginTop: "0.5rem", color: "#2563eb" }}>
+                    + Add Experience
+                  </button>
+                )}
+              </section>
+            ) : null}
 
             {/* Buttons */}
-            <div  className="no-print" style={{ textAlign: "center", marginTop: "2rem" }} >
+            <div className="no-print" style={{ textAlign: "center", marginTop: "2rem" }} >
               {editMode ? (
                 <>
                   <button

@@ -17,9 +17,11 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(morgan("dev"));
+
+// Updated CORS to match your frontend port 5180
 app.use(
   cors({
-    origin: "http://localhost:5180",
+    origin: "http://localhost:5180", 
     credentials: true,
   })
 );
@@ -33,12 +35,20 @@ const authRoutes = require("./routes/authRoutes");
 const geminiRoutes = require("./routes/geminiRoutes");
 const resumeRoutes = require("./routes/resumeRoutes");
 
-// Register API Routes
+// --- REGISTER API ROUTES ---
+
 app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/resumes", resumeRoutes);
-// CHANGED: Mounted to /api/ai/enhance to fix the 404 error
-app.use("/api/ai/enhance", geminiRoutes); 
+
+/**
+ * AI ROUTE MOUNTING
+ * Changed from /api/ai/enhance to /api/ai.
+ * This ensures that 'router.post("/enhance", ...)' in geminiRoutes.js
+ * maps correctly to 'http://localhost:5000/api/ai/enhance'.
+ */
+app.use("/api/ai", geminiRoutes); 
+
 app.use("/api/ats", atsRoutes);
 
 // Health check
@@ -46,7 +56,7 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "Server is running" });
 });
 
-// Error handling
+// Error handling middleware
 app.use(errorHandler);
 
 // Start server
@@ -68,13 +78,13 @@ async function startServer() {
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (error) => {
-  console.error(" Uncaught Exception:", error);
+  console.error("Critical: Uncaught Exception:", error);
   process.exit(1);
 });
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (error) => {
-  console.error(" Unhandled Rejection:", error);
+  console.error("Critical: Unhandled Rejection:", error);
   process.exit(1);
 });
 

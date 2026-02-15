@@ -3,12 +3,22 @@ import Sidebar from "../Sidebar/Sidebar";
 import Navbar from "../Navbar/Navbar";
 import { useResume } from "../../context/ResumeContext";
 import PropTypes from "prop-types";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { getSafeUrl } from "../../utils/ResumeConfig"; // Import URL helper
+
+// --- Helper function to safely render text from objects or strings ---
+const renderSafeText = (item) => {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  if (typeof item === "object") {
+    // Try common property names in order of priority
+    return item.title || item.name || item.language || item.degree || JSON.stringify(item);
+  }
+  return String(item);
+};
 
 // --- Resume Preview Component (PURE INLINE STYLES - NO CSS CLASSES) ---
 const UserResumePreview = forwardRef(
-  ({ data, themeColor, zoomLevel }, ref) => {
+  ({ data, themeColor, zoomLevel, sectionOrder }, ref) => {
    
     // Custom theme colors
     const theme = {
@@ -41,6 +51,210 @@ const UserResumePreview = forwardRef(
         {children}
       </section>
     );
+
+    // Map section keys to their display components
+    const sectionComponents = {
+      // SUMMARY
+      summary: data.summary && (
+        <Section key="summary" title="Summary" icon="👤">
+          <p style={{ fontSize: "1rem", lineHeight: "1.6", textAlign: "justify", color: "#333333", margin: 0 }}>
+            {renderSafeText(data.summary)}
+          </p>
+        </Section>
+      ),
+
+      // EXPERIENCE
+      experience: Array.isArray(data.experience) && data.experience.length > 0 && (
+        <Section key="experience" title="Experience" icon="💼">
+          {data.experience.map((exp, i) => (
+            <div key={exp.id || i} style={{ marginBottom: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.25rem" }}>
+                <h3 style={{ fontSize: "1.125rem", color: "#000000", margin: 0 }}>
+                  <span style={{ fontWeight: "bold" }}>{renderSafeText(exp.title)}</span>
+                  {exp.companyName && (
+                    <>
+                       {" at "}
+                      <span style={{ fontWeight: "bold", color: theme.accent }}>
+                        {renderSafeText(exp.companyName)}
+                      </span>
+                    </>
+                  )}
+                </h3>
+                <span style={{ fontSize: "0.875rem", fontWeight: "bold", whiteSpace: "nowrap", color: "#555555" }}>
+                  {exp.date}
+                </span>
+              </div>
+              
+              <p style={{ fontSize: "0.875rem", fontStyle: "italic", marginBottom: "0.5rem", color: "#666666", margin: 0 }}>
+                {exp.companyLocation}
+              </p>
+
+              <ul style={{ listStyle: "none", paddingLeft: "0.5rem", margin: 0 }}>
+                {Array.isArray(exp.accomplishment) && exp.accomplishment.map((point, j) => {
+                  const safePoint = renderSafeText(point);
+                  return safePoint && safePoint.trim() !== "" && (
+                    <li key={j} style={{ display: "flex", alignItems: "flex-start", fontSize: "1rem", marginBottom: "0.25rem" }}>
+                      <span style={{ marginRight: "0.5rem", fontSize: "1.25rem", lineHeight: "1", color: theme.bullet }}>•</span> 
+                      <span>{safePoint}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </Section>
+      ),
+
+      // EDUCATION
+      education: Array.isArray(data.education) && data.education.length > 0 && (
+        <Section key="education" title="Education" icon="🎓">
+          {data.education.map((edu, i) => (
+            <div key={edu.id || i} style={{ marginBottom: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <h3 style={{ fontSize: "1.125rem", fontWeight: "bold", color: "#000000", margin: 0 }}>
+                  {renderSafeText(edu.degree)}
+                </h3>
+                <span style={{ fontSize: "0.875rem", fontWeight: "bold", whiteSpace: "nowrap", color: "#555555" }}>
+                  {edu.duration}
+                </span>
+              </div>
+              <p style={{ fontSize: "1rem", fontStyle: "italic", color: theme.accent, margin: 0 }}>
+                {renderSafeText(edu.institution)}
+              </p>
+              <p style={{ fontSize: "0.875rem", color: "#555555", margin: 0 }}>
+                {edu.location}
+              </p>
+            </div>
+          ))}
+        </Section>
+      ),
+
+      // SKILLS
+      skills: Array.isArray(data.skills) && data.skills.length > 0 && (
+        <Section key="skills" title="Skills" icon="💡">
+          <ul style={{ listStyle: "none", paddingLeft: "0.5rem", margin: 0 }}>
+            {data.skills.map((skill, i) => {
+              const safeSkill = renderSafeText(skill);
+              return safeSkill && safeSkill.trim() ? (
+                <li key={i} style={{ display: "flex", alignItems: "center", fontSize: "1rem", marginBottom: "0.25rem" }}>
+                  <span style={{ marginRight: "0.5rem", fontSize: "1.5rem", lineHeight: "1", color: theme.bullet }}>•</span>
+                  <span>{safeSkill}</span>
+                </li>
+              ) : null;
+            })}
+          </ul>
+        </Section>
+      ),
+
+      // PROJECTS
+      projects: Array.isArray(data.projects) && data.projects.length > 0 && (
+        <Section key="projects" title="Projects" icon="🚀">
+          {data.projects.map((project, i) => (
+            <div key={project.id || i} style={{ marginBottom: "1.25rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <h3 style={{ fontSize: "1.125rem", fontWeight: "bold", color: "#000000", margin: 0 }}>
+                  {renderSafeText(project.name)}
+                </h3>
+                {project.link && (
+                  <a href={getSafeUrl("portfolio", project.link)} target="_blank" rel="noreferrer" style={{ fontSize: "0.875rem", color: theme.accent, textDecoration: "none" }}>
+                    View Project ↗
+                  </a>
+                )}
+              </div>
+              {project.technologies && (
+                <p style={{ fontSize: "0.875rem", marginBottom: "0.25rem", color: "#444444", margin: 0 }}>
+                  <span style={{ fontWeight: "bold" }}>Tech Stack: </span>
+                  {Array.isArray(project.technologies) 
+                    ? project.technologies.map(t => renderSafeText(t)).join(", ") 
+                    : renderSafeText(project.technologies)}
+                </p>
+              )}
+              <p style={{ fontSize: "1rem", color: "#000000", margin: 0 }}>{renderSafeText(project.description)}</p>
+            </div>
+          ))}
+        </Section>
+      ),
+
+      // CERTIFICATIONS
+      certifications: Array.isArray(data.certifications) && data.certifications.length > 0 && (
+        <Section key="certifications" title="Certifications" icon="📜">
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {data.certifications.map((cert, i) => (
+              <li key={cert.id || i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #f3f4f6", paddingBottom: "0.5rem", marginBottom: "0.5rem" }}>
+                <div>
+                  <h4 style={{ fontSize: "1rem", fontWeight: "bold", color: "#000000", margin: 0 }}>{renderSafeText(cert.title)}</h4>
+                  <p style={{ fontSize: "0.875rem", fontStyle: "italic", color: "#555555", margin: 0 }}>{renderSafeText(cert.issuer)}</p>
+                </div>
+                <span style={{ fontSize: "0.875rem", fontWeight: "bold", color: "#555555" }}>{cert.date}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ),
+
+      // ACHIEVEMENTS
+      achievements: Array.isArray(data.achievements) && data.achievements.length > 0 && (
+        <Section key="achievements" title="Achievements" icon="🏆">
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {data.achievements.map((ach, i) => {
+              if (typeof ach === 'object') {
+                return (
+                  <li key={i} style={{ borderBottom: "1px solid #f3f4f6", paddingBottom: "0.5rem", marginBottom: "0.5rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <h4 style={{ fontSize: "1rem", fontWeight: "bold", color: "#000000", margin: 0 }}>{renderSafeText(ach.title)}</h4>
+                      <span style={{ fontSize: "0.875rem", fontWeight: "bold", color: "#555555" }}>{ach.date}</span>
+                    </div>
+                    <p style={{ fontSize: "0.875rem", fontStyle: "italic", color: "#555555", margin: 0 }}>{renderSafeText(ach.description)}</p>
+                  </li>
+                );
+              } else {
+                const safeAch = renderSafeText(ach);
+                return safeAch && (
+                  <li key={i} style={{ display: "flex", alignItems: "flex-start", fontSize: "1rem", marginBottom: "0.25rem" }}>
+                    <span style={{ marginRight: "0.5rem", fontSize: "1.25rem", lineHeight: "1", color: theme.bullet }}>•</span>
+                    {safeAch}
+                  </li>
+                );
+              }
+            })}
+          </ul>
+        </Section>
+      ),
+
+      // LANGUAGES
+      languages: Array.isArray(data.languages) && data.languages.length > 0 && (
+        <Section key="languages" title="Languages" icon="🗣️">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
+            {data.languages.map((lang, i) => {
+              const safeLang = renderSafeText(lang);
+              return safeLang && safeLang.trim() ? (
+                <span key={i} style={{ fontSize: "1rem", color: "#000000" }}>
+                  <span style={{ color: theme.accent, marginRight: "0.25rem" }}>•</span>
+                  {safeLang}
+                </span>
+              ) : null;
+            })}
+          </div>
+        </Section>
+      ),
+
+      // INTERESTS
+      interests: Array.isArray(data.interests) && data.interests.length > 0 && (
+        <Section key="interests" title="Interests" icon="🎯">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
+            {data.interests.map((interest, i) => {
+              const safeInterest = renderSafeText(interest);
+              return safeInterest && safeInterest.trim() ? (
+                <span key={i} style={{ fontSize: "1rem", color: "#000000" }}>
+                  <span style={{ color: theme.accent, marginRight: "0.25rem" }}>•</span>
+                  {safeInterest}
+                </span>
+              ) : null;
+            })}
+          </div>
+        </Section>
+      )
+    };
 
     return (
       <div
@@ -80,38 +294,40 @@ const UserResumePreview = forwardRef(
             )}
             {data.phone && (
               <p style={{ display: "flex", alignItems: "center", margin: 0 }}>
-                 <span style={{ marginRight: "0.25rem" }}>📞</span>
-                {data.phone}
+                <span style={{ marginRight: "0.25rem" }}>📞</span>
+                <a href={getSafeUrl("phone", data.phone)} style={{ color: "inherit", textDecoration: "none" }}>
+                  {data.phone}
+                </a>
               </p>
             )}
             {data.email && (
               <p style={{ display: "flex", alignItems: "center", margin: 0 }}>
-                 <span style={{ marginRight: "0.25rem" }}>✉️</span>
-                <a href={`mailto:${data.email}`} style={{ color: "inherit", textDecoration: "none" }}>
+                <span style={{ marginRight: "0.25rem" }}>✉️</span>
+                <a href={getSafeUrl("email", data.email)} style={{ color: "inherit", textDecoration: "none" }}>
                   {data.email}
                 </a>
               </p>
             )}
             {data.linkedin && (
               <p style={{ display: "flex", alignItems: "center", margin: 0 }}>
-                 <span style={{ marginRight: "0.25rem" }}>🔗</span>
-                <a href={data.linkedin} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
-                   LinkedIn
+                <span style={{ marginRight: "0.25rem" }}>🔗</span>
+                <a href={getSafeUrl("linkedin", data.linkedin)} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+                  LinkedIn
                 </a>
               </p>
             )}
             {data.github && (
               <p style={{ display: "flex", alignItems: "center", margin: 0 }}>
-                 <span style={{ marginRight: "0.25rem" }}>💻</span>
-                <a href={`https://github.com/${data.github.replace('https://github.com/', '')}`} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
-                   GitHub
+                <span style={{ marginRight: "0.25rem" }}>💻</span>
+                <a href={getSafeUrl("github", data.github)} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+                  GitHub
                 </a>
               </p>
             )}
             {data.portfolio && ( 
               <p style={{ display: "flex", alignItems: "center", margin: 0 }}>
-                 <span style={{ marginRight: "0.25rem" }}>🌐</span>
-                <a href={data.portfolio} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+                <span style={{ marginRight: "0.25rem" }}>🌐</span>
+                <a href={getSafeUrl("portfolio", data.portfolio)} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
                   Portfolio
                 </a>
               </p>
@@ -123,180 +339,11 @@ const UserResumePreview = forwardRef(
         <div style={{ margin: "0 3rem 2rem 3rem", borderBottom: "2px solid #000000", opacity: 0.8 }}></div>
 
         <div style={{ paddingLeft: "3rem", paddingRight: "3rem", paddingBottom: "3rem", backgroundColor: "#ffffff" }}>
-          
-          {/* SUMMARY */}
-          {data.summary && (
-            <Section title="Summary" icon="👤">
-              <p style={{ fontSize: "1rem", lineHeight: "1.6", textAlign: "justify", color: "#333333", margin: 0 }}>
-                {data.summary}
-              </p>
-            </Section>
-          )}
-
-          {/* EXPERIENCE */}
-          {Array.isArray(data.experience) && data.experience.length > 0 && (
-            <Section title="Experience" icon="💼">
-              {data.experience.map((exp, i) => (
-                <div key={exp.id || i} style={{ marginBottom: "1.5rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.25rem" }}>
-                    <h3 style={{ fontSize: "1.125rem", color: "#000000", margin: 0 }}>
-                      <span style={{ fontWeight: "bold" }}>{exp.title}</span>
-                      {exp.companyName && (
-                        <>
-                           {" at "}
-                          <span style={{ fontWeight: "bold", color: theme.accent }}>
-                            {exp.companyName}
-                          </span>
-                        </>
-                      )}
-                    </h3>
-                    <span style={{ fontSize: "0.875rem", fontWeight: "bold", whiteSpace: "nowrap", color: "#555555" }}>
-                      {exp.date}
-                    </span>
-                  </div>
-                  
-                  <p style={{ fontSize: "0.875rem", fontStyle: "italic", marginBottom: "0.5rem", color: "#666666", margin: 0 }}>
-                    {exp.companyLocation}
-                  </p>
-
-                  <ul style={{ listStyle: "none", paddingLeft: "0.5rem", margin: 0 }}>
-                    {Array.isArray(exp.accomplishment) && exp.accomplishment.map((point, j) =>
-                        point && point.trim() !== "" && (
-                            <li key={j} style={{ display: "flex", alignItems: "flex-start", fontSize: "1rem", marginBottom: "0.25rem" }}>
-                              <span style={{ marginRight: "0.5rem", fontSize: "1.25rem", lineHeight: "1", color: theme.bullet }}>•</span> 
-                              <span>{point}</span>
-                            </li>
-                        )
-                    )}
-                  </ul>
-                </div>
-              ))}
-            </Section>
-          )}
-
-          {/* EDUCATION */}
-          {Array.isArray(data.education) && data.education.length > 0 && (
-            <Section title="Education" icon="🎓">
-              {data.education.map((edu, i) => (
-                <div key={edu.id || i} style={{ marginBottom: "1rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <h3 style={{ fontSize: "1.125rem", fontWeight: "bold", color: "#000000", margin: 0 }}>
-                      {edu.degree}
-                    </h3>
-                    <span style={{ fontSize: "0.875rem", fontWeight: "bold", whiteSpace: "nowrap", color: "#555555" }}>
-                      {edu.duration}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: "1rem", fontStyle: "italic", color: theme.accent, margin: 0 }}>
-                    {edu.institution}
-                  </p>
-                  <p style={{ fontSize: "0.875rem", color: "#555555", margin: 0 }}>
-                    {edu.location}
-                  </p>
-                </div>
-              ))}
-            </Section>
-          )}
-
-          {/* SKILLS */}
-          {Array.isArray(data.skills) && data.skills.length > 0 && (
-            <Section title="Skills" icon="💡">
-              <ul style={{ listStyle: "none", paddingLeft: "0.5rem", margin: 0 }}>
-                {data.skills.map((skill, i) => (
-                  skill && typeof skill === 'string' && skill.trim() ? (
-                    <li key={i} style={{ display: "flex", alignItems: "center", fontSize: "1rem", marginBottom: "0.25rem" }}>
-                      <span style={{ marginRight: "0.5rem", fontSize: "1.5rem", lineHeight: "1", color: theme.bullet }}>•</span>
-                      <span>{skill.trim()}</span>
-                    </li>
-                  ) : null
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          {/* PROJECTS */}
-          {Array.isArray(data.projects) && data.projects.length > 0 && (
-            <Section title="Projects" icon="🚀">
-              {data.projects.map((project, i) => (
-                <div key={project.id || i} style={{ marginBottom: "1.25rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <h3 style={{ fontSize: "1.125rem", fontWeight: "bold", color: "#000000", margin: 0 }}>
-                      {project.name}
-                    </h3>
-                    {project.link && (
-                      <a href={project.link} target="_blank" rel="noreferrer" style={{ fontSize: "0.875rem", color: theme.accent, textDecoration: "none" }}>
-                        View Project ↗
-                      </a>
-                    )}
-                  </div>
-                  {project.technologies && (
-                    <p style={{ fontSize: "0.875rem", marginBottom: "0.25rem", color: "#444444", margin: 0 }}>
-                      <span style={{ fontWeight: "bold" }}>Tech Stack: </span>
-                      {Array.isArray(project.technologies) ? project.technologies.join(", ") : project.technologies}
-                    </p>
-                  )}
-                  <p style={{ fontSize: "1rem", color: "#000000", margin: 0 }}>{project.description}</p>
-                </div>
-              ))}
-            </Section>
-          )}
-
-          {/* CERTIFICATIONS */}
-          {Array.isArray(data.certifications) && data.certifications.length > 0 && (
-            <Section title="Certifications" icon="📜">
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {data.certifications.map((cert, i) => (
-                  <li key={cert.id || i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #f3f4f6", paddingBottom: "0.5rem", marginBottom: "0.5rem" }}>
-                    <div>
-                      <h4 style={{ fontSize: "1rem", fontWeight: "bold", color: "#000000", margin: 0 }}>{cert.title}</h4>
-                      <p style={{ fontSize: "0.875rem", fontStyle: "italic", color: "#555555", margin: 0 }}>{cert.issuer}</p>
-                    </div>
-                    <span style={{ fontSize: "0.875rem", fontWeight: "bold", color: "#555555" }}>{cert.date}</span>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          {/* ACHIEVEMENTS */}
-          {Array.isArray(data.achievements) && data.achievements.length > 0 && (
-            <Section title="Achievements" icon="🏆">
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {data.achievements.map((ach, i) => (
-                   typeof ach === 'object' ? (
-                    <li key={i} style={{ borderBottom: "1px solid #f3f4f6", paddingBottom: "0.5rem", marginBottom: "0.5rem" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                            <h4 style={{ fontSize: "1rem", fontWeight: "bold", color: "#000000", margin: 0 }}>{ach.title}</h4>
-                            <span style={{ fontSize: "0.875rem", fontWeight: "bold", color: "#555555" }}>{ach.date}</span>
-                        </div>
-                        <p style={{ fontSize: "0.875rem", fontStyle: "italic", color: "#555555", margin: 0 }}>{ach.description}</p>
-                    </li>
-                   ) : (
-                    <li key={i} style={{ display: "flex", alignItems: "flex-start", fontSize: "1rem", marginBottom: "0.25rem" }}>
-                      <span style={{ marginRight: "0.5rem", fontSize: "1.25rem", lineHeight: "1", color: theme.bullet }}>•</span>
-                      {ach}
-                    </li>
-                   )
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          {/* LANGUAGES */}
-          {Array.isArray(data.languages) && data.languages.length > 0 && (
-            <Section title="Languages" icon="🗣️">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
-                {data.languages.map((lang, i) => (
-                  lang && typeof lang === 'string' && lang.trim() ? (
-                    <span key={i} style={{ fontSize: "1rem", color: "#000000" }}>
-                      <span style={{ color: theme.accent, marginRight: "0.25rem" }}>•</span>
-                      {lang.trim()}
-                    </span>
-                  ) : null
-                ))}
-              </div>
-            </Section>
-          )}
+          {/* DYNAMIC SECTION RENDERING - Using sectionOrder from context */}
+          {(sectionOrder || [
+            "summary", "experience", "education", "skills", "projects", 
+            "certifications", "achievements", "languages", "interests"
+          ]).map((sectionKey) => sectionComponents[sectionKey] || null)}
         </div>
       </div>
     );
@@ -304,6 +351,12 @@ const UserResumePreview = forwardRef(
 );
 
 UserResumePreview.displayName = "UserResumePreview";
+UserResumePreview.propTypes = {
+  data: PropTypes.object.isRequired,
+  themeColor: PropTypes.string,
+  zoomLevel: PropTypes.number,
+  sectionOrder: PropTypes.array
+};
 
 // --- FORM HELPER COMPONENTS (Standard CSS Classes are fine here as they aren't printed) ---
 const FormSectionWrapper = ({ title, children }) => (
@@ -441,7 +494,7 @@ const UserResumeEditForm = ({ formData, setFormData }) => {
     const modifiedValue = value.replace(/\n/g, ",");
     setFormData((prev) => ({
       ...prev,
-      [field]: modifiedValue.split(","), 
+      [field]: modifiedValue.split(",").map(s => s.trim()).filter(s => s), 
     }));
   };
 
@@ -507,8 +560,8 @@ const UserResumeEditForm = ({ formData, setFormData }) => {
           <div key={proj.id || i} className="p-4 border rounded-md bg-white space-y-3 relative">
             <button onClick={() => removeArrayItem("projects", i)} className="absolute top-3 right-3 text-red-500 hover:text-red-700 p-1 text-xl">🗑️</button>
             <Input label="Project Name" value={proj.name} onChange={(e) => handleArrayFieldChange("projects", i, "name", e.target.value)} />
-            <Input label="Technologies (comma separated)" value={Array.isArray(proj.technologies) ? proj.technologies.join(", ") : proj.technologies} onChange={(e) => handleArrayFieldChange("projects", i, "technologies", e.target.value.split(", "))} />
-             <Input label="Project Link" value={proj.link} onChange={(e) => handleArrayFieldChange("projects", i, "link", e.target.value)} />
+            <Input label="Technologies (comma separated)" value={Array.isArray(proj.technologies) ? proj.technologies.join(", ") : proj.technologies || ""} onChange={(e) => handleArrayFieldChange("projects", i, "technologies", e.target.value.split(",").map(t => t.trim()).filter(t => t))} />
+            <Input label="Project Link" value={proj.link} onChange={(e) => handleArrayFieldChange("projects", i, "link", e.target.value)} />
             <Textarea label="Description" value={proj.description} onChange={(e) => handleArrayFieldChange("projects", i, "description", e.target.value)} rows={3} />
           </div>
         ))}
@@ -527,26 +580,29 @@ const UserResumeEditForm = ({ formData, setFormData }) => {
         <button onClick={() => addArrayItem("certifications", { id: `cert-${Date.now()}`, title: "", issuer: "", date: "" })} className="bg-indigo-500 text-white px-5 py-2.5 rounded-md hover:bg-indigo-600 flex items-center text-md">➕ Add Certification</button>
       </FormSectionWrapper>
 
+      {/* ========== FIXED ACHIEVEMENTS SECTION ========== */}
       <FormSectionWrapper title="Achievements">
-        {(formData.achievements && Array.isArray(formData.achievements) && typeof formData.achievements[0] === 'object' 
-          ? formData.achievements 
-          : []).map((ach, i) => (
+        {Array.isArray(formData.achievements) && formData.achievements.map((ach, i) => (
           <div key={ach.id || i} className="p-4 border rounded-md bg-white space-y-3 relative">
             <button onClick={() => removeArrayItem("achievements", i)} className="absolute top-3 right-3 text-red-500 hover:text-red-700 p-1 text-xl">🗑️</button>
-            <Input label="Achievement Title" value={ach.title} onChange={(e) => handleArrayFieldChange("achievements", i, "title", e.target.value)} placeholder="e.g. Hackathon Winner" />
-            <Input label="Description / Organization" value={ach.description} onChange={(e) => handleArrayFieldChange("achievements", i, "description", e.target.value)} placeholder="e.g. Smart India Hackathon" />
-            <Input label="Date / Year" value={ach.date} onChange={(e) => handleArrayFieldChange("achievements", i, "date", e.target.value)} placeholder="e.g. 2025" />
+            <Input label="Achievement Title" value={ach.title || ""} onChange={(e) => handleArrayFieldChange("achievements", i, "title", e.target.value)} placeholder="e.g. Hackathon Winner" />
+            <Input label="Description / Organization" value={ach.description || ""} onChange={(e) => handleArrayFieldChange("achievements", i, "description", e.target.value)} placeholder="e.g. Smart India Hackathon" />
+            <Input label="Date / Year" value={ach.date || ""} onChange={(e) => handleArrayFieldChange("achievements", i, "date", e.target.value)} placeholder="e.g. 2025" />
           </div>
         ))}
         <button onClick={() => addArrayItem("achievements", { id: `ach-${Date.now()}`, title: "", description: "", date: "" })} className="bg-indigo-500 text-white px-5 py-2.5 rounded-md hover:bg-indigo-600 flex items-center text-md">➕ Add Achievement</button>
       </FormSectionWrapper>
 
       <FormSectionWrapper title="Skills">
-        <Textarea label="Skills (comma-separated)" value={(formData.skills || []).join(",")} onChange={(e) => handleListChange("skills", e.target.value)} />
+        <Textarea label="Skills (comma-separated)" value={(formData.skills || []).join(", ")} onChange={(e) => handleListChange("skills", e.target.value)} />
       </FormSectionWrapper>
 
       <FormSectionWrapper title="Languages">
-        <Textarea label="Languages (comma-separated)" value={(formData.languages || []).join(",")} onChange={(e) => handleListChange("languages", e.target.value)} />
+        <Textarea label="Languages (comma-separated)" value={(formData.languages || []).join(", ")} onChange={(e) => handleListChange("languages", e.target.value)} />
+      </FormSectionWrapper>
+
+      <FormSectionWrapper title="Interests">
+        <Textarea label="Interests (comma-separated)" value={(formData.interests || []).join(", ")} onChange={(e) => handleListChange("interests", e.target.value)} />
       </FormSectionWrapper>
     </div>
   );
@@ -559,7 +615,7 @@ UserResumeEditForm.propTypes = {
 
 // --- Main Template Component ---
 const Template15 = () => {
-  const { resumeData, setResumeData } = useResume();
+  const { resumeData, updateResumeData, sectionOrder } = useResume();
   const [formData, setFormData] = useState(null); 
   const [isEditing, setIsEditing] = useState(false);
   const resumeRef = useRef(null);
@@ -578,7 +634,7 @@ const Template15 = () => {
         achievements: cleanAchievements, 
         skills: resumeData.skills || [],
         languages: resumeData.languages || [],
-        // interests: resumeData.interests || [], // REMOVED from state initialization
+        interests: resumeData.interests || [],
         experience: resumeData.experience || [],
         education: resumeData.education || []
       });
@@ -586,7 +642,9 @@ const Template15 = () => {
   }, [resumeData]);
 
   const handleSave = () => {
-    setResumeData(formData);
+    if (updateResumeData) {
+      updateResumeData(formData);
+    }
     setIsEditing(false);
   };
   
@@ -658,7 +716,16 @@ const Template15 = () => {
     );
   }
 
-  const buttonStyle = { padding: "0.75rem 1.5rem", borderRadius: "0.375rem", border: "none", fontSize: "1rem", fontWeight: "600", cursor: "pointer", transition: "all 0.3s" };
+  // Floating button styles
+  const buttonStyle = { 
+    padding: "0.75rem 1.5rem", 
+    borderRadius: "0.375rem", 
+    border: "none", 
+    fontSize: "1rem", 
+    fontWeight: "600", 
+    cursor: "pointer", 
+    transition: "all 0.3s" 
+  };
   const saveButtonStyle = { ...buttonStyle, backgroundColor: "#10b981", color: "white", marginRight: "0.5rem" };
   const cancelButtonStyle = { ...buttonStyle, backgroundColor: "#6b7280", color: "white" };
   const editButtonStyle = { ...buttonStyle, backgroundColor: "#3b82f6", color: "white" };
@@ -667,7 +734,7 @@ const Template15 = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="flex">
-        <Sidebar onDownload={handleDownload} onSave={handleSave} resumeRef={resumeRef} />
+        <Sidebar onDownload={handleDownload} resumeRef={resumeRef} />
         <div className="flex-1 p-6 pb-24"> 
           <div className="max-w-7xl mx-auto">
             <div className="w-full mt-8">
@@ -675,10 +742,31 @@ const Template15 = () => {
                 <UserResumeEditForm formData={formData} setFormData={setFormData} />
               </div>
               <div hidden={isEditing}>
-                <UserResumePreview ref={resumeRef} data={resumeData} themeColor="indigo" zoomLevel={1} />
+                <UserResumePreview 
+                  ref={resumeRef} 
+                  data={resumeData} 
+                  themeColor="indigo" 
+                  zoomLevel={1} 
+                  sectionOrder={sectionOrder}
+                />
               </div>
             </div>
-            <div style={{ marginTop: "2rem", textAlign: "center" }}>
+            
+            {/* Floating Action Buttons at Bottom */}
+            <div style={{ 
+              position: "fixed", 
+              bottom: "30px", 
+              left: "50%", 
+              transform: "translateX(-50%)",
+              zIndex: 1000,
+              backgroundColor: "white",
+              padding: "1rem 2rem",
+              borderRadius: "50px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+              display: "flex",
+              gap: "1rem",
+              border: "1px solid #e5e7eb"
+            }}>
               {isEditing ? (
                 <>
                   <button onClick={handleSave} style={saveButtonStyle}>Save Changes</button>

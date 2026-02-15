@@ -5,6 +5,7 @@ import Navbar from "../Navbar/Navbar";
 import { useResume } from "../../context/ResumeContext";
 import { useAuth } from "../../context/AuthContext";
 import resumeService from "../../services/resumeService";
+import { getSafeUrl } from "../../utils/ResumeConfig"; // Import the URL helper
 
 const accent = "#bccfd0"; // soft teal-grey accent used across the layout
 
@@ -57,24 +58,327 @@ const TemplateNew = () => {
   const resumeData = resumeContext?.resumeData || {};
   const updateResumeData = resumeContext?.updateResumeData;
 
-  const [localData, setLocalData] = useState(resumeData);
+  const [localData, setLocalData] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [isSavingToDatabase, setIsSavingToDatabase] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
-
+  // Initialize with default data if empty
   useEffect(() => {
-    setLocalData(resumeData || {});
+    if (resumeData && Object.keys(resumeData).length > 0) {
+      setLocalData(JSON.parse(JSON.stringify(resumeData)));
+    } else {
+      // Default data structure
+      const defaultData = {
+        name: "ELLA BROOKS",
+        role: "FULL STACK DEVELOPER",
+        email: "ellabrooks@gmail.com",
+        phone: "+1 234 567 8900",
+        location: "Chennai, India",
+        linkedin: "linkedin.com/in/ella",
+        github: "github.com/ella",
+        portfolio: "ellabrooks.dev",
+        summary: "Write a compelling professional summary highlighting your key strengths and career goals...",
+        experience: [
+          {
+            title: "Frontend Intern",
+            company: "Google",
+            duration: "2022 – 2023",
+            description: "Developed and maintained web applications using React and TypeScript. Collaborated with cross-functional teams to deliver high-quality features."
+          }
+        ],
+        education: [
+          {
+            degree: "BE in Computer Science",
+            institution: "Bluefield University",
+            year: "2017 – 2021"
+          }
+        ],
+        skills: ["Front and Backend Development", "React.js / JavaScript", "Node.js / Express.js", "Git & REST APIs"],
+        projects: [
+          {
+            name: "Portfolio Website",
+            description: "Developed with React and Tailwind to showcase skills and projects professionally."
+          }
+        ],
+        certifications: [
+          {
+            name: "AWS Cloud Practitioner",
+            title: "AWS Cloud Practitioner"
+          }
+        ],
+        achievements: ["Achievement 1", "Achievement 2"],
+        languages: [
+          { language: "English", proficiency: 6 },
+          { language: "French", proficiency: 4 },
+          { language: "Spanish", proficiency: 3 }
+        ],
+        interests: ["Travelling", "Books", "Photography"],
+        templateId: 16
+      };
+      setLocalData(defaultData);
+    }
   }, [resumeData]);
 
-
   const handleFieldChange = (field, value) => {
+    if (!localData) return;
     const updated = { ...localData, [field]: value };
     setLocalData(updated);
     localStorage.setItem("resumeData", JSON.stringify(updated));
   };
 
+  // Handle nested personal info fields
+  const handlePersonalInfoChange = (field, value) => {
+    if (!localData) return;
+    const updated = { 
+      ...localData, 
+      [field]: value 
+    };
+    setLocalData(updated);
+    localStorage.setItem("resumeData", JSON.stringify(updated));
+  };
+
+  // Handle array field changes for complex objects
+  const handleArrayUpdate = (section, index, key, value) => {
+    if (!localData || !localData[section]) return;
+    
+    setLocalData(prev => {
+      const updated = [...(prev[section] || [])];
+      if (!updated[index]) updated[index] = {};
+      
+      if (typeof updated[index] === 'object') {
+        updated[index] = { ...updated[index], [key]: value };
+      } else {
+        updated[index] = value;
+      }
+      
+      const newData = { ...prev, [section]: updated };
+      localStorage.setItem("resumeData", JSON.stringify(newData));
+      return newData;
+    });
+  };
+
+  // Handle simple array changes (skills, interests, achievements)
+  const handleSimpleArrayChange = (section, index, value) => {
+    if (!localData || !localData[section]) return;
+    
+    setLocalData(prev => {
+      const updated = [...(prev[section] || [])];
+      updated[index] = value;
+      const newData = { ...prev, [section]: updated };
+      localStorage.setItem("resumeData", JSON.stringify(newData));
+      return newData;
+    });
+  };
+
+  // Add new item to array
+  const handleAddItem = (section, emptyItem = "") => {
+    if (!localData) return;
+    
+    setLocalData(prev => {
+      const updated = {
+        ...prev,
+        [section]: [...(prev[section] || []), emptyItem]
+      };
+      localStorage.setItem("resumeData", JSON.stringify(updated));
+      toast.info(`Added new ${section} item`);
+      return updated;
+    });
+  };
+
+  // Remove item from array
+  const handleRemoveItem = (section, index) => {
+    if (!localData || !localData[section]) return;
+    
+    setLocalData(prev => {
+      const updated = [...(prev[section] || [])];
+      updated.splice(index, 1);
+      const newData = { ...prev, [section]: updated };
+      localStorage.setItem("resumeData", JSON.stringify(newData));
+      toast.warn(`Removed ${section} item`);
+      return newData;
+    });
+  };
+
+  // ========== DOWNLOAD FUNCTIONALITY ==========
+  const handleDownload = async () => {
+    const element = resumeRef.current;
+    if (!element) {
+      toast.error('Resume content not found');
+      return;
+    }
+
+    if (isDownloading) return;
+    setIsDownloading(true);
+
+    // Store original styles
+    const originalHeight = element.style.height;
+    const originalOverflow = element.style.overflow;
+    
+    // Temporarily adjust for PDF capture
+    element.style.height = 'auto';
+    element.style.overflow = 'visible';
+
+    const options = {
+      margin: [5, 5, 5, 5],
+      filename: `${localData?.name?.replace(/\s+/g, '_') || 'Resume'}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      enableLinks: true,
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        letterRendering: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        allowTaint: false,
+        ignoreElements: (element) => {
+          return element.getAttribute('data-html2canvas-ignore') === 'true' ||
+                 element.classList.contains('hide-in-pdf') ||
+                 element.tagName === 'BUTTON' ||
+                 element.closest('button') !== null;
+        }
+      },
+      jsPDF: { 
+        unit: 'mm', 
+        format: 'a4', 
+        orientation: 'portrait',
+        compress: true
+      },
+      pagebreak: { mode: ['css', 'legacy'] }
+    };
+
+    toast.info('📄 Generating PDF...', { autoClose: false, toastId: 'pdf-toast' });
+
+    try {
+      // Add a class to hide edit controls during PDF generation
+      const editControls = document.querySelectorAll('.hide-in-pdf');
+      editControls.forEach(el => el.setAttribute('data-pdf-hide', 'true'));
+      
+      await html2pdf()
+        .set(options)
+        .from(element)
+        .save();
+      
+      // Restore edit controls
+      editControls.forEach(el => el.removeAttribute('data-pdf-hide'));
+      
+      toast.update('pdf-toast', { 
+        render: '✅ Download complete!', 
+        type: 'success', 
+        autoClose: 3000 
+      });
+    } catch (err) {
+      console.error('PDF Error:', err);
+      toast.update('pdf-toast', { 
+        render: '❌ Download failed', 
+        type: 'error', 
+        autoClose: 3000 
+      });
+    } finally {
+      // Restore original styles
+      element.style.height = originalHeight;
+      element.style.overflow = originalOverflow;
+      setIsDownloading(false);
+    }
+  };
+
+  // ========== PREVIEW FUNCTIONALITY ==========
+  const handlePreview = async () => {
+    const element = resumeRef.current;
+    if (!element) {
+      toast.error('Resume content not found');
+      return;
+    }
+
+    if (isPreviewing) return;
+    setIsPreviewing(true);
+
+    // Store original styles
+    const originalHeight = element.style.height;
+    const originalOverflow = element.style.overflow;
+    
+    // Temporarily adjust for PDF capture
+    element.style.height = 'auto';
+    element.style.overflow = 'visible';
+
+    const options = {
+      margin: [5, 5, 5, 5],
+      filename: 'preview.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      enableLinks: true,
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        letterRendering: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        allowTaint: false,
+        ignoreElements: (element) => {
+          return element.getAttribute('data-html2canvas-ignore') === 'true' ||
+                 element.classList.contains('hide-in-pdf') ||
+                 element.tagName === 'BUTTON' ||
+                 element.closest('button') !== null;
+        }
+      },
+      jsPDF: { 
+        unit: 'mm', 
+        format: 'a4', 
+        orientation: 'portrait',
+        compress: true
+      },
+      pagebreak: { mode: ['css', 'legacy'] }
+    };
+
+    toast.info('📄 Generating preview...', { autoClose: false, toastId: 'preview-toast' });
+
+    try {
+      // Hide edit controls during preview
+      const editControls = document.querySelectorAll('.hide-in-pdf');
+      editControls.forEach(el => el.setAttribute('data-pdf-hide', 'true'));
+      
+      const pdf = await html2pdf()
+        .set(options)
+        .from(element)
+        .toPdf()
+        .get('pdf');
+
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      
+      // Restore edit controls
+      editControls.forEach(el => el.removeAttribute('data-pdf-hide'));
+      
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      toast.update('preview-toast', { 
+        render: '✅ Preview opened in new tab!', 
+        type: 'success', 
+        autoClose: 3000 
+      });
+    } catch (err) {
+      console.error('Preview Error:', err);
+      toast.update('preview-toast', { 
+        render: '❌ Preview failed', 
+        type: 'error', 
+        autoClose: 3000 
+      });
+    } finally {
+      // Restore original styles
+      element.style.height = originalHeight;
+      element.style.overflow = originalOverflow;
+      setIsPreviewing(false);
+    }
+  };
+
   const handleSave = async () => {
+    if (!localData) {
+      toast.error("No data to save");
+      return;
+    }
+
     try {
       setSaveStatus("Saving...");
       setIsSavingToDatabase(true);
@@ -88,17 +392,15 @@ const TemplateNew = () => {
 
       if (isAuthenticated) {
         const structuredData = {
-          templateId: 16, // keep consistent with Template16 for backend
-          personalInfo: {
-            name: localData.name || "",
-            role: localData.role || "",
-            email: localData.email || "",
-            phone: localData.phone || "",
-            location: localData.location || "",
-            linkedin: localData.linkedin || "",
-            github: localData.github || "",
-            portfolio: localData.portfolio || "",
-          },
+          templateId: 16,
+          name: localData.name || "",
+          role: localData.role || "",
+          email: localData.email || "",
+          phone: localData.phone || "",
+          location: localData.location || "",
+          linkedin: localData.linkedin || "",
+          github: localData.github || "",
+          portfolio: localData.portfolio || "",
           summary: localData.summary || "",
           skills: localData.skills || [],
           experience: localData.experience || [],
@@ -137,15 +439,16 @@ const TemplateNew = () => {
   };
 
   const handleCancel = () => {
-    setLocalData(resumeData || {});
+    setLocalData(resumeData ? JSON.parse(JSON.stringify(resumeData)) : null);
     setEditMode(false);
     setSaveStatus("");
+    toast.info("Changes discarded");
   };
 
   const handleEnhance = (section, enhancedData = null) => {
     const source = enhancedData || resumeContext?.resumeData;
-    if (!source) return;
-    const updated = { ...source };
+    if (!source || !localData) return;
+    const updated = { ...localData, ...source };
     setLocalData(updated);
     localStorage.setItem("resumeData", JSON.stringify(updated));
     if (updateResumeData) {
@@ -153,77 +456,55 @@ const TemplateNew = () => {
     }
   };
 
+  // Render safe string
+  const renderSafe = (val) => {
+    if (!val) return "";
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') return val.toString();
+    return val.name || val.title || val.degree || "";
+  };
+
+  // Show loading if no data
+  if (!localData) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading resume...</p>
+        </div>
+      </div>
+    );
+  }
+
   const headerName = localData.name || "ELLA BROOKS";
   const role = localData.role || "FULL STACK DEVELOPER";
+  const phone = localData.phone || "";
+  const email = localData.email || "";
+  const location = localData.location || "";
+  const linkedin = localData.linkedin || "";
+  const github = localData.github || "";
+  const portfolio = localData.portfolio || "";
 
-  const phone = localData.phone || "8529637410";
-  const email = localData.email || "ellabrooks@gmail.com";
-  const location = localData.location || "Chennai, India";
-  const linkedin = localData.linkedin || "linkedin.com/in/ella";
-  const github = localData.github || "github.com/ella";
+  // Personal profile / summary
+  const summary = typeof localData.summary === "string" ? localData.summary : "";
 
-  // Personal profile / summary: start empty by default and show only what user types
-  const summary =
-    typeof localData.summary === "string" ? localData.summary : "";
-
-  const education = Array.isArray(localData.education)
-    ? localData.education.length > 0
-      ? localData.education
-      : [{ degree: "", institution: "", year: "" }]
-    : [{ degree: "BE in Computer Science", institution: "Bluefield University (2017 – 2021)", year: "" }];
-
-  const experience = Array.isArray(localData.experience)
-    ? localData.experience.length > 0
-      ? localData.experience
-      : [{ title: "", company: "", duration: "", description: "" }]
-    : [{ title: "Frontend Intern — Google", company: "Google", duration: "2022 – 2023", description: "" }];
-
-  const projects = Array.isArray(localData.projects)
-    ? localData.projects.length > 0
-      ? localData.projects
-      : [{ name: "", description: "" }]
-    : [{ name: "Portfolio Website", description: "Developed with React and Tailwind to showcase skills and projects professionally." }];
-
-  const certifications = Array.isArray(localData.certifications)
-    ? localData.certifications.length > 0
-      ? localData.certifications
-      : [{ name: "", title: "" }]
-    : [{ name: "AWS Cloud Practitioner", title: "AWS Cloud Practitioner" }];
-
-  const skills = Array.isArray(localData.skills)
-    ? localData.skills.length > 0
-      ? localData.skills
-      : ["Front and Backend Development", "React.js / JavaScript", "Node.js / Express.js", "Git & REST APIs"]
-    : ["Front and Backend Development", "React.js / JavaScript", "Node.js / Express.js", "Git & REST APIs"];
-
-  const interests = Array.isArray(localData.interests)
-    ? localData.interests.length > 0
-      ? localData.interests
-      : ["Travelling", "Books"]
-    : ["Travelling", "Books"];
+  const education = Array.isArray(localData.education) ? localData.education : [];
+  const experience = Array.isArray(localData.experience) ? localData.experience : [];
+  const projects = Array.isArray(localData.projects) ? localData.projects : [];
+  const certifications = Array.isArray(localData.certifications) ? localData.certifications : [];
+  const skills = Array.isArray(localData.skills) ? localData.skills : [];
+  const interests = Array.isArray(localData.interests) ? localData.interests : [];
 
   // Convert languages to objects with proficiency if they're strings
   const normalizeLanguages = (langs) => {
-    if (!Array.isArray(langs)) {
-      return [
-        { language: "English", proficiency: 6 },
-        { language: "French", proficiency: 4 },
-        { language: "Spanish", proficiency: 3 },
-        { language: "German", proficiency: 2 },
-      ];
+    if (!Array.isArray(langs) || langs.length === 0) {
+      return [];
     }
     return langs.map((lang) => {
       if (typeof lang === "string") {
-        // Migrate old format (string) to new format (object)
-        const defaultLevels = {
-          English: 6,
-          French: 4,
-          Spanish: 3,
-          German: 2,
-        };
         return {
           language: lang,
-          proficiency: defaultLevels[lang] || 4,
+          proficiency: 4,
         };
       }
       return {
@@ -234,6 +515,11 @@ const TemplateNew = () => {
   };
 
   const languages = normalizeLanguages(localData.languages);
+
+  // ========== Profile image visibility ==========
+  const hasProfileImage = () => {
+    return localData.photoUrl && localData.photoUrl.trim().length > 0;
+  };
 
   // Helpers to decide which sections should be shown in view mode
   const hasSummary = () =>
@@ -279,6 +565,21 @@ const TemplateNew = () => {
           (cert.title && cert.title.trim().length > 0))
     );
 
+  const hasSkills = () =>
+    Array.isArray(localData.skills) &&
+    localData.skills.some(skill => skill && skill.trim().length > 0);
+
+  const hasInterests = () =>
+    Array.isArray(localData.interests) &&
+    localData.interests.some(interest => interest && interest.trim().length > 0);
+
+  const hasLanguages = () =>
+    Array.isArray(localData.languages) &&
+    localData.languages.some(lang => 
+      (lang.language && lang.language.trim().length > 0) ||
+      (typeof lang === 'string' && lang.trim().length > 0)
+    );
+
   return (
     <>
       <style>
@@ -286,6 +587,10 @@ const TemplateNew = () => {
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+          }
+          /* Hide elements during PDF generation */
+          [data-pdf-hide="true"] {
+            display: none !important;
           }
         `}
       </style>
@@ -310,6 +615,7 @@ const TemplateNew = () => {
           >
             {/* Resume canvas */}
             <div
+              ref={resumeRef}
               style={{
                 backgroundColor: "#ffffff",
                 color: "#1f2937",
@@ -320,57 +626,64 @@ const TemplateNew = () => {
             >
               <div className="flex min-h-[800px] items-center justify-center bg-[#e1e6e8] py-8">
                 <div
-                  ref={resumeRef}
                   className="flex w-full max-w-5xl overflow-hidden bg-white shadow-xl"
                   style={{ minHeight: '100vh', alignItems: 'stretch' }}
+                  data-resume-template="template-new"
                 >
                   {/* Left sidebar */}
                   <aside className="flex w-1/3 flex-col items-center bg-[#c1d5d5] px-8 pb-10 pt-10" style={{ minHeight: '100%', alignSelf: 'stretch' }}>
-                    {/* Profile image */}
-                    <div className="mb-8 relative">
-                      <div className="h-40 w-40 overflow-hidden rounded-full border-[6px] border-white shadow-md">
-                        <img
-                          src={
-                            localData.photoUrl ||
-                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Crect width='300' height='300' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial' font-size='16' fill='%239ca3af' text-anchor='middle' dy='.3em'%3EPhoto%3C/text%3E%3C/svg%3E"
-                          }
-                          alt="Profile"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      {editMode && (
-                        <div className="mt-3 space-y-2 hide-in-pdf">
-                          <label className="flex cursor-pointer flex-col items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
-                            <span className="mb-1">📷 Upload Photo</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    handleFieldChange("photoUrl", reader.result);
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
-                              }}
-                              className="hidden"
+                    {/* Profile image - only shows when photo exists or in edit mode */}
+                    {(hasProfileImage() || editMode) && (
+                      <div className="mb-8 relative">
+                        <div className="h-40 w-40 overflow-hidden rounded-full border-[6px] border-white shadow-md">
+                          {hasProfileImage() ? (
+                            <img
+                              src={localData.photoUrl}
+                              alt="Profile"
+                              className="h-full w-full object-cover"
                             />
-                          </label>
-                          {localData.photoUrl && (
-                            <button
-                              onClick={() => handleFieldChange("photoUrl", "")}
-                              className="w-full rounded bg-red-500 px-3 py-2 text-xs text-white hover:bg-red-600"
-                            >
-                              Remove Photo
-                            </button>
+                          ) : (
+                            <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+                              <span className="text-gray-400 text-xs">No photo</span>
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
+                        
+                        {/* Edit mode upload controls - always visible in edit mode */}
+                        {editMode && (
+                          <div className="mt-3 space-y-2 hide-in-pdf">
+                            <label className="flex cursor-pointer flex-col items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
+                              <span className="mb-1">📷 {hasProfileImage() ? 'Change Photo' : 'Upload Photo'}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      handlePersonalInfoChange("photoUrl", reader.result);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                            {hasProfileImage() && (
+                              <button
+                                onClick={() => handlePersonalInfoChange("photoUrl", "")}
+                                className="w-full rounded bg-red-500 px-3 py-2 text-xs text-white hover:bg-red-600"
+                              >
+                                Remove Photo
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                    {/* Contact */}
+                    {/* Contact - Now includes portfolio */}
                     <section className="mt-5 w-full text-left text-[14px] text-[#405053]">
                       <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
                         CONTACT
@@ -378,95 +691,114 @@ const TemplateNew = () => {
                       <div className="space-y-2">
                         {editMode ? (
                           <div className="hide-in-pdf">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 mb-1">
                               <input
                                 type="text"
                                 value={phone}
-                                onChange={(e) =>
-                                  handleFieldChange("phone", e.target.value)
-                                }
+                                onChange={(e) => handlePersonalInfoChange("phone", e.target.value)}
                                 className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
                                 placeholder="Phone"
                               />
-                              <button
-                                onClick={() => handleFieldChange("phone", "")}
-                                className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                title="Remove phone"
-                              >
-                                ✕
-                              </button>
+                              {phone && (
+                                <button
+                                  onClick={() => handlePersonalInfoChange("phone", "")}
+                                  className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                  title="Remove phone"
+                                >
+                                  ✕
+                                </button>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 mb-1">
                               <input
                                 type="email"
                                 value={email}
-                                onChange={(e) =>
-                                  handleFieldChange("email", e.target.value)
-                                }
+                                onChange={(e) => handlePersonalInfoChange("email", e.target.value)}
                                 className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
                                 placeholder="Email"
                               />
-                              <button
-                                onClick={() => handleFieldChange("email", "")}
-                                className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                title="Remove email"
-                              >
-                                ✕
-                              </button>
+                              {email && (
+                                <button
+                                  onClick={() => handlePersonalInfoChange("email", "")}
+                                  className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                  title="Remove email"
+                                >
+                                  ✕
+                                </button>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 mb-1">
                               <input
                                 type="text"
                                 value={location}
-                                onChange={(e) =>
-                                  handleFieldChange("location", e.target.value)
-                                }
+                                onChange={(e) => handlePersonalInfoChange("location", e.target.value)}
                                 className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
                                 placeholder="Location"
                               />
-                              <button
-                                onClick={() => handleFieldChange("location", "")}
-                                className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                title="Remove location"
-                              >
-                                ✕
-                              </button>
+                              {location && (
+                                <button
+                                  onClick={() => handlePersonalInfoChange("location", "")}
+                                  className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                  title="Remove location"
+                                >
+                                  ✕
+                                </button>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 mb-1">
                               <input
                                 type="text"
                                 value={linkedin}
-                                onChange={(e) =>
-                                  handleFieldChange("linkedin", e.target.value)
-                                }
+                                onChange={(e) => handlePersonalInfoChange("linkedin", e.target.value)}
                                 className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
                                 placeholder="LinkedIn"
                               />
-                              <button
-                                onClick={() => handleFieldChange("linkedin", "")}
-                                className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                title="Remove LinkedIn"
-                              >
-                                ✕
-                              </button>
+                              {linkedin && (
+                                <button
+                                  onClick={() => handlePersonalInfoChange("linkedin", "")}
+                                  className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                  title="Remove LinkedIn"
+                                >
+                                  ✕
+                                </button>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 mb-1">
                               <input
                                 type="text"
                                 value={github}
-                                onChange={(e) =>
-                                  handleFieldChange("github", e.target.value)
-                                }
+                                onChange={(e) => handlePersonalInfoChange("github", e.target.value)}
                                 className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
                                 placeholder="GitHub"
                               />
-                              <button
-                                onClick={() => handleFieldChange("github", "")}
-                                className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                title="Remove GitHub"
-                              >
-                                ✕
-                              </button>
+                              {github && (
+                                <button
+                                  onClick={() => handlePersonalInfoChange("github", "")}
+                                  className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                  title="Remove GitHub"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                            {/* NEW: Portfolio field */}
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={portfolio}
+                                onChange={(e) => handlePersonalInfoChange("portfolio", e.target.value)}
+                                className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
+                                placeholder="Portfolio"
+                              />
+                              {portfolio && (
+                                <button
+                                  onClick={() => handlePersonalInfoChange("portfolio", "")}
+                                  className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                  title="Remove portfolio"
+                                >
+                                  ✕
+                                </button>
+                              )}
                             </div>
                           </div>
                         ) : (
@@ -480,7 +812,12 @@ const TemplateNew = () => {
                             {email && (
                               <p className="flex items-center gap-2 break-all">
                                 <span className="text-[12px]">✉️</span>
-                                <span>{email}</span>
+                                <a
+                                  href={`mailto:${email}`}
+                                  style={{ color: "inherit", textDecoration: "none" }}
+                                >
+                                  {email}
+                                </a>
                               </p>
                             )}
                             {location && (
@@ -492,13 +829,41 @@ const TemplateNew = () => {
                             {linkedin && (
                               <p className="flex items-center gap-2 break-all">
                                 <span className="text-[12px]">in</span>
-                                <span>{linkedin}</span>
+                                <a
+                                  href={getSafeUrl("linkedin", linkedin)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: "inherit", textDecoration: "none" }}
+                                >
+                                  {linkedin}
+                                </a>
                               </p>
                             )}
                             {github && (
                               <p className="flex items-center gap-2 break-all">
                                 <span className="text-[12px]">GitHub</span>
-                                <a href={github} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{github}</a>
+                                <a
+                                  href={getSafeUrl("github", github)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: "inherit", textDecoration: "none" }}
+                                >
+                                  {github}
+                                </a>
+                              </p>
+                            )}
+                            {/* NEW: Portfolio link display */}
+                            {portfolio && (
+                              <p className="flex items-center gap-2 break-all">
+                                <span className="text-[12px]">🌐</span>
+                                <a
+                                  href={getSafeUrl("portfolio", portfolio)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: "inherit", textDecoration: "none" }}
+                                >
+                                  {portfolio}
+                                </a>
                               </p>
                             )}
                           </>
@@ -506,229 +871,184 @@ const TemplateNew = () => {
                       </div>
                     </section>
 
-                    {/* Expertise skills */}
-                    <section className="mt-7 w-full text-left text-[14px] text-[#405053]">
-                      <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
-                        EXPERTISE SKILLS
-                      </h3>
-                      {editMode ? (
-                        <div className="space-y-2 hide-in-pdf">
-                          {skills.map((skill, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2"
-                            >
-                              <input
-                                type="text"
-                                value={skill || ""}
-                                onChange={(e) => {
-                                  const updated = [...skills];
-                                  updated[index] = e.target.value;
-                                  handleFieldChange("skills", updated);
-                                }}
-                                className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
-                                placeholder="Skill name"
-                              />
-                              {skills.length > 1 && (
-                                <button
-                                  onClick={() => {
-                                    const updated = skills.filter(
-                                      (_, i) => i !== index
-                                    );
-                                    handleFieldChange("skills", updated);
-                                  }}
-                                  className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                >
-                                  Remove
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                          <button
-                            onClick={() => {
-                              const updated = [...skills, ""];
-                              handleFieldChange("skills", updated);
-                            }}
-                            className="w-full rounded bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600"
-                          >
-                            + Add Skill
-                          </button>
-                        </div>
-                      ) : (
-                        <ul className="ml-4 list-disc space-y-1.5 marker:text-[#4e6f73]">
-                          {skills
-                            .filter((skill) => skill && skill.trim())
-                            .map((skill, idx) => (
-                              // eslint-disable-next-line react/no-array-index-key
-                              <li key={idx}>{skill}</li>
-                            ))}
-                        </ul>
-                      )}
-                    </section>
-
-                    {/* Language */}
-                    <section className="mt-7 w-full text-left text-[14px] text-[#405053]">
-                      <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
-                        LANGUAGE
-                      </h3>
-                      {editMode ? (
-                        <div className="space-y-3 hide-in-pdf">
-                          {languages.map((langObj, index) => (
-                            <div
-                              key={index}
-                              className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-gray-600">
-                                  Language #{index + 1}
-                                </span>
-                                {languages.length > 1 && (
+                    {/* Expertise skills - Only show if has content or edit mode */}
+                    {(editMode || hasSkills()) && (
+                      <section className="mt-7 w-full text-left text-[14px] text-[#405053]">
+                        <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
+                          EXPERTISE SKILLS
+                        </h3>
+                        {editMode ? (
+                          <div className="space-y-2 hide-in-pdf">
+                            {skills.map((skill, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2"
+                              >
+                                <input
+                                  type="text"
+                                  value={skill || ""}
+                                  onChange={(e) => handleSimpleArrayChange("skills", index, e.target.value)}
+                                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
+                                  placeholder="Skill name"
+                                />
+                                {skills.length > 1 && (
                                   <button
-                                    onClick={() => {
-                                      const updated = languages.filter(
-                                        (_, i) => i !== index
-                                      );
-                                      handleFieldChange("languages", updated);
-                                    }}
+                                    onClick={() => handleRemoveItem("skills", index)}
                                     className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
                                   >
                                     Remove
                                   </button>
                                 )}
                               </div>
-                              <input
-                                type="text"
-                                value={langObj.language || ""}
-                                onChange={(e) => {
-                                  const updated = [...languages];
-                                  updated[index] = {
-                                    ...updated[index],
-                                    language: e.target.value,
-                                  };
-                                  handleFieldChange("languages", updated);
-                                }}
-                                className="w-full rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
-                                placeholder="Language name (e.g., English)"
-                              />
-                              <div className="flex items-center gap-3">
-                                <label className="text-xs text-gray-600">
-                                  Proficiency:
-                                </label>
-                                <div className="flex flex-1 items-center gap-2">
-                                  <input
-                                    type="range"
-                                    min="0"
-                                    max="6"
-                                    value={langObj.proficiency || 4}
-                                    onChange={(e) => {
-                                      const updated = [...languages];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        proficiency: parseInt(e.target.value, 10),
-                                      };
-                                      handleFieldChange("languages", updated);
-                                    }}
-                                    className="flex-1"
-                                  />
-                                  <div className="flex items-center gap-1">
-                                    <DotRow filled={langObj.proficiency || 4} />
-                                    <span className="text-xs text-gray-600 w-8">
-                                      ({langObj.proficiency || 4}/6)
-                                    </span>
+                            ))}
+                            <button
+                              onClick={() => handleAddItem("skills", "")}
+                              className="w-full rounded bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600"
+                            >
+                              + Add Skill
+                            </button>
+                          </div>
+                        ) : (
+                          <ul className="ml-4 list-disc space-y-1.5 marker:text-[#4e6f73]">
+                            {skills
+                              .filter((skill) => skill && skill.trim())
+                              .map((skill, idx) => (
+                                <li key={idx}>{skill}</li>
+                              ))}
+                          </ul>
+                        )}
+                      </section>
+                    )}
+
+                    {/* Language - Only show if has content or edit mode */}
+                    {(editMode || hasLanguages()) && (
+                      <section className="mt-7 w-full text-left text-[14px] text-[#405053]">
+                        <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
+                          LANGUAGE
+                        </h3>
+                        {editMode ? (
+                          <div className="space-y-3 hide-in-pdf">
+                            {languages.map((langObj, index) => (
+                              <div
+                                key={index}
+                                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold text-gray-600">
+                                    Language #{index + 1}
+                                  </span>
+                                  {languages.length > 1 && (
+                                    <button
+                                      onClick={() => handleRemoveItem("languages", index)}
+                                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={langObj.language || ""}
+                                  onChange={(e) => handleArrayUpdate("languages", index, "language", e.target.value)}
+                                  className="w-full rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
+                                  placeholder="Language name (e.g., English)"
+                                />
+                                <div className="flex items-center gap-3">
+                                  <label className="text-xs text-gray-600">
+                                    Proficiency:
+                                  </label>
+                                  <div className="flex flex-1 items-center gap-2">
+                                    <input
+                                      type="range"
+                                      min="0"
+                                      max="6"
+                                      value={langObj.proficiency || 4}
+                                      onChange={(e) => handleArrayUpdate("languages", index, "proficiency", parseInt(e.target.value, 10))}
+                                      className="flex-1"
+                                    />
+                                    <div className="flex items-center gap-1">
+                                      <DotRow filled={langObj.proficiency || 4} />
+                                      <span className="text-xs text-gray-600 w-8">
+                                        ({langObj.proficiency || 4}/6)
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                          <button
-                            onClick={() => {
-                              const updated = [
-                                ...languages,
-                                { language: "", proficiency: 4 },
-                              ];
-                              handleFieldChange("languages", updated);
-                            }}
-                            className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                          >
-                            + Add Language
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-2.5">
-                          {languages
-                            .filter((lang) => lang.language && lang.language.trim())
-                            .map((langObj, idx) => (
+                            ))}
+                            <button
+                              onClick={() => handleAddItem("languages", { language: "", proficiency: 4 })}
+                              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
+                            >
+                              + Add Language
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2.5">
+                            {languages
+                              .filter((lang) => lang.language && lang.language.trim())
+                              .map((langObj, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-center gap-2"
+                                >
+                                  <p>{langObj.language}</p>
+                                  <DotRow filled={langObj.proficiency || 4} />
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </section>
+                    )}
+
+                    {/* Interests - Only show if has content or edit mode */}
+                    {(editMode || hasInterests()) && (
+                      <section className="mt-7 w-full text-left text-[14px] text-[#405053]">
+                        <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
+                          INTEREST
+                        </h3>
+                        {editMode ? (
+                          <div className="space-y-2 hide-in-pdf">
+                            {interests.map((interest, index) => (
                               <div
-                                key={idx}
-                                className="flex items-center gap-2"
+                                key={index}
+                                className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2"
                               >
-                                <p>{langObj.language}</p>
-                                <DotRow filled={langObj.proficiency || 4} />
+                                <input
+                                  type="text"
+                                  value={interest || ""}
+                                  onChange={(e) => handleSimpleArrayChange("interests", index, e.target.value)}
+                                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
+                                  placeholder="Interest name"
+                                />
+                                {interests.length > 1 && (
+                                  <button
+                                    onClick={() => handleRemoveItem("interests", index)}
+                                    className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
                               </div>
                             ))}
-                        </div>
-                      )}
-                    </section>
-
-                    {/* Interests */}
-                    <section className="mt-7 w-full text-left text-[14px] text-[#405053]">
-                      <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
-                        INTEREST
-                      </h3>
-                      {editMode ? (
-                        <div className="space-y-2 hide-in-pdf">
-                          {interests.map((interest, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2"
+                            <button
+                              onClick={() => handleAddItem("interests", "")}
+                              className="w-full rounded bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600"
                             >
-                              <input
-                                type="text"
-                                value={interest || ""}
-                                onChange={(e) => {
-                                  const updated = [...interests];
-                                  updated[index] = e.target.value;
-                                  handleFieldChange("interests", updated);
-                                }}
-                                className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
-                                placeholder="Interest name"
-                              />
-                              {interests.length > 1 && (
-                                <button
-                                  onClick={() => {
-                                    const updated = interests.filter(
-                                      (_, i) => i !== index
-                                    );
-                                    handleFieldChange("interests", updated);
-                                  }}
-                                  className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                >
-                                  Remove
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                          <button
-                            onClick={() => {
-                              const updated = [...interests, ""];
-                              handleFieldChange("interests", updated);
-                            }}
-                            className="w-full rounded bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600"
-                          >
-                            + Add Interest
-                          </button>
-                        </div>
-                      ) : (
-                        <ul className="ml-4 list-disc space-y-1.5 marker:text-[#4e6f73]">
-                          {interests
-                            .filter((interest) => interest && interest.trim())
-                            .map((interest, idx) => (
-                              // eslint-disable-next-line react/no-array-index-key
-                              <li key={idx}>{interest}</li>
-                            ))}
-                        </ul>
-                      )}
-                    </section>
+                              + Add Interest
+                            </button>
+                          </div>
+                        ) : (
+                          <ul className="ml-4 list-disc space-y-1.5 marker:text-[#4e6f73]">
+                            {interests
+                              .filter((interest) => interest && interest.trim())
+                              .map((interest, idx) => (
+                                <li key={idx}>{interest}</li>
+                              ))}
+                          </ul>
+                        )}
+                      </section>
+                    )}
                   </aside>
 
                   {/* Right content */}
@@ -740,23 +1060,19 @@ const TemplateNew = () => {
                     <header className="mt-0 mb-6">
                       <div className="-mx-10 bg-[#c1d5d5] px-10 py-6 text-center">
                         {editMode ? (
-                          <div className="hide-in-pdf">
+                          <div className="hide-in-pdf space-y-2">
                             <input
                               type="text"
                               value={headerName}
-                              onChange={(e) =>
-                                handleFieldChange("name", e.target.value)
-                              }
-                              className="mb-2 w-full max-w-md rounded border border-gray-300 bg-white/70 px-3 py-1 text-center text-[26px] font-bold tracking-[0.3em] text-[#48656b] outline-none"
+                              onChange={(e) => handlePersonalInfoChange("name", e.target.value)}
+                              className="w-full max-w-md rounded border border-gray-300 bg-white/70 px-3 py-1 text-center text-[26px] font-bold tracking-[0.3em] text-[#48656b] outline-none mx-auto"
                               placeholder="YOUR NAME"
                             />
                             <input
                               type="text"
                               value={role}
-                              onChange={(e) =>
-                                handleFieldChange("role", e.target.value)
-                              }
-                              className="w-full max-w-md rounded border border-gray-300 bg-white/70 px-3 py-1 text-center text-[18px] tracking-[0.45em] text-[#6c858b] outline-none"
+                              onChange={(e) => handlePersonalInfoChange("role", e.target.value)}
+                              className="w-full max-w-md rounded border border-gray-300 bg-white/70 px-3 py-1 text-center text-[18px] tracking-[0.45em] text-[#6c858b] outline-none mx-auto"
                               placeholder="YOUR POSITION"
                             />
                           </div>
@@ -777,18 +1093,15 @@ const TemplateNew = () => {
                     <div className="relative mt-8 pl-2">
                       {/* Professional Profile */}
                       {(editMode || hasSummary()) && (
-                        <TimelineSection
-                          number="01"
-                          title="PROFESSIONAL PROFILE"
-                        >
+                        <TimelineSection number="01" title="PROFESSIONAL PROFILE">
                           {editMode && (
-                            <div className="mb-2 flex justify-end">
+                            <div className="mb-2 flex justify-end hide-in-pdf">
                               <button
                                 type="button"
                                 onClick={() => handleFieldChange("summary", "")}
                                 className="text-xs text-red-500 hover:underline"
                               >
-                                Remove section
+                                Clear section
                               </button>
                             </div>
                           )}
@@ -796,9 +1109,7 @@ const TemplateNew = () => {
                             <div className="hide-in-pdf">
                               <textarea
                                 value={summary}
-                                onChange={(e) =>
-                                  handleFieldChange("summary", e.target.value)
-                                }
+                                onChange={(e) => handleFieldChange("summary", e.target.value)}
                                 className="h-32 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
                                 placeholder="Write a short professional summary about yourself..."
                               />
@@ -812,17 +1123,19 @@ const TemplateNew = () => {
                       {/* Education */}
                       {(editMode || hasEducation()) && (
                         <TimelineSection number="02" title="EDUCATION">
+                          {editMode && (
+                            <div className="mb-2 flex justify-end hide-in-pdf">
+                              <button
+                                type="button"
+                                onClick={() => handleFieldChange("education", [])}
+                                className="text-xs text-red-500 hover:underline"
+                              >
+                                Remove all
+                              </button>
+                            </div>
+                          )}
                           {editMode ? (
                             <div className="space-y-4 hide-in-pdf">
-                              <div className="mb-1 flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() => handleFieldChange("education", [])}
-                                  className="text-xs text-red-500 hover:underline"
-                                >
-                                  Remove section
-                                </button>
-                              </div>
                               {education.map((edu, index) => (
                                 <div
                                   key={index}
@@ -834,12 +1147,7 @@ const TemplateNew = () => {
                                     </span>
                                     {education.length > 1 && (
                                       <button
-                                        onClick={() => {
-                                          const updated = education.filter(
-                                            (_, i) => i !== index
-                                          );
-                                          handleFieldChange("education", updated);
-                                        }}
+                                        onClick={() => handleRemoveItem("education", index)}
                                         className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
                                       >
                                         Remove
@@ -849,55 +1157,28 @@ const TemplateNew = () => {
                                   <input
                                     type="text"
                                     value={edu.degree || ""}
-                                    onChange={(e) => {
-                                      const updated = [...education];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        degree: e.target.value,
-                                      };
-                                      handleFieldChange("education", updated);
-                                    }}
+                                    onChange={(e) => handleArrayUpdate("education", index, "degree", e.target.value)}
                                     className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
                                     placeholder="Degree (e.g., BE in Computer Science)"
                                   />
                                   <input
                                     type="text"
                                     value={edu.institution || ""}
-                                    onChange={(e) => {
-                                      const updated = [...education];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        institution: e.target.value,
-                                      };
-                                      handleFieldChange("education", updated);
-                                    }}
+                                    onChange={(e) => handleArrayUpdate("education", index, "institution", e.target.value)}
                                     className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Institution (e.g., Bluefield University (2017 – 2021))"
+                                    placeholder="Institution (e.g., Bluefield University)"
                                   />
                                   <input
                                     type="text"
                                     value={edu.year || ""}
-                                    onChange={(e) => {
-                                      const updated = [...education];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        year: e.target.value,
-                                      };
-                                      handleFieldChange("education", updated);
-                                    }}
+                                    onChange={(e) => handleArrayUpdate("education", index, "year", e.target.value)}
                                     className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Year (optional)"
+                                    placeholder="Year (e.g., 2017 – 2021)"
                                   />
                                 </div>
                               ))}
                               <button
-                                onClick={() => {
-                                  const updated = [
-                                    ...education,
-                                    { degree: "", institution: "", year: "" },
-                                  ];
-                                  handleFieldChange("education", updated);
-                                }}
+                                onClick={() => handleAddItem("education", { degree: "", institution: "", year: "" })}
                                 className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
                               >
                                 + Add Education
@@ -931,17 +1212,19 @@ const TemplateNew = () => {
                       {/* Projects */}
                       {(editMode || hasProjects()) && (
                         <TimelineSection number="03" title="PROJECTS">
+                          {editMode && (
+                            <div className="mb-2 flex justify-end hide-in-pdf">
+                              <button
+                                type="button"
+                                onClick={() => handleFieldChange("projects", [])}
+                                className="text-xs text-red-500 hover:underline"
+                              >
+                                Remove all
+                              </button>
+                            </div>
+                          )}
                           {editMode ? (
                             <div className="space-y-4 hide-in-pdf">
-                              <div className="mb-1 flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() => handleFieldChange("projects", [])}
-                                  className="text-xs text-red-500 hover:underline"
-                                >
-                                  Remove section
-                                </button>
-                              </div>
                               {projects.map((project, index) => (
                                 <div
                                   key={index}
@@ -953,12 +1236,7 @@ const TemplateNew = () => {
                                     </span>
                                     {projects.length > 1 && (
                                       <button
-                                        onClick={() => {
-                                          const updated = projects.filter(
-                                            (_, i) => i !== index
-                                          );
-                                          handleFieldChange("projects", updated);
-                                        }}
+                                        onClick={() => handleRemoveItem("projects", index)}
                                         className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
                                       >
                                         Remove
@@ -968,40 +1246,20 @@ const TemplateNew = () => {
                                   <input
                                     type="text"
                                     value={project.name || ""}
-                                    onChange={(e) => {
-                                      const updated = [...projects];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        name: e.target.value,
-                                      };
-                                      handleFieldChange("projects", updated);
-                                    }}
+                                    onChange={(e) => handleArrayUpdate("projects", index, "name", e.target.value)}
                                     className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
                                     placeholder="Project Name (e.g., Portfolio Website)"
                                   />
                                   <textarea
                                     value={project.description || ""}
-                                    onChange={(e) => {
-                                      const updated = [...projects];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        description: e.target.value,
-                                      };
-                                      handleFieldChange("projects", updated);
-                                    }}
+                                    onChange={(e) => handleArrayUpdate("projects", index, "description", e.target.value)}
                                     className="h-24 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
                                     placeholder="Project description"
                                   />
                                 </div>
                               ))}
                               <button
-                                onClick={() => {
-                                  const updated = [
-                                    ...projects,
-                                    { name: "", description: "" },
-                                  ];
-                                  handleFieldChange("projects", updated);
-                                }}
+                                onClick={() => handleAddItem("projects", { name: "", description: "" })}
                                 className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
                               >
                                 + Add Project
@@ -1034,19 +1292,19 @@ const TemplateNew = () => {
                       {/* Experience */}
                       {(editMode || hasExperience()) && (
                         <TimelineSection number="04" title="EXPERIENCE">
+                          {editMode && (
+                            <div className="mb-2 flex justify-end hide-in-pdf">
+                              <button
+                                type="button"
+                                onClick={() => handleFieldChange("experience", [])}
+                                className="text-xs text-red-500 hover:underline"
+                              >
+                                Remove all
+                              </button>
+                            </div>
+                          )}
                           {editMode ? (
                             <div className="space-y-4 hide-in-pdf">
-                              <div className="mb-1 flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleFieldChange("experience", [])
-                                  }
-                                  className="text-xs text-red-500 hover:underline"
-                                >
-                                  Remove section
-                                </button>
-                              </div>
                               {experience.map((exp, index) => (
                                 <div
                                   key={index}
@@ -1058,12 +1316,7 @@ const TemplateNew = () => {
                                     </span>
                                     {experience.length > 1 && (
                                       <button
-                                        onClick={() => {
-                                          const updated = experience.filter(
-                                            (_, i) => i !== index
-                                          );
-                                          handleFieldChange("experience", updated);
-                                        }}
+                                        onClick={() => handleRemoveItem("experience", index)}
                                         className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
                                       >
                                         Remove
@@ -1073,68 +1326,34 @@ const TemplateNew = () => {
                                   <input
                                     type="text"
                                     value={exp.title || ""}
-                                    onChange={(e) => {
-                                      const updated = [...experience];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        title: e.target.value,
-                                      };
-                                      handleFieldChange("experience", updated);
-                                    }}
+                                    onChange={(e) => handleArrayUpdate("experience", index, "title", e.target.value)}
                                     className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
                                     placeholder="Job Title (e.g., Frontend Intern)"
                                   />
                                   <input
                                     type="text"
                                     value={exp.company || ""}
-                                    onChange={(e) => {
-                                      const updated = [...experience];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        company: e.target.value,
-                                      };
-                                      handleFieldChange("experience", updated);
-                                    }}
+                                    onChange={(e) => handleArrayUpdate("experience", index, "company", e.target.value)}
                                     className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
                                     placeholder="Company (e.g., Google)"
                                   />
                                   <input
                                     type="text"
                                     value={exp.duration || ""}
-                                    onChange={(e) => {
-                                      const updated = [...experience];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        duration: e.target.value,
-                                      };
-                                      handleFieldChange("experience", updated);
-                                    }}
+                                    onChange={(e) => handleArrayUpdate("experience", index, "duration", e.target.value)}
                                     className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
                                     placeholder="Duration (e.g., 2022 – 2023)"
                                   />
                                   <textarea
                                     value={exp.description || ""}
-                                    onChange={(e) => {
-                                      const updated = [...experience];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        description: e.target.value,
-                                      };
-                                      handleFieldChange("experience", updated);
-                                    }}
+                                    onChange={(e) => handleArrayUpdate("experience", index, "description", e.target.value)}
                                     className="h-24 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
                                     placeholder="Job description and responsibilities"
                                   />
                                 </div>
                               ))}
                               <button
-                                onClick={() => {
-                                  const updated = [
-                                    ...experience,
-                                    { title: "", company: "", duration: "", description: "" },
-                                  ];
-                                  handleFieldChange("experience", updated);
-                                }}
+                                onClick={() => handleAddItem("experience", { title: "", company: "", duration: "", description: "" })}
                                 className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
                               >
                                 + Add Experience
@@ -1173,19 +1392,19 @@ const TemplateNew = () => {
                       {/* Certifications */}
                       {(editMode || hasCertifications()) && (
                         <TimelineSection number="05" title="CERTIFICATIONS">
+                          {editMode && (
+                            <div className="mb-2 flex justify-end hide-in-pdf">
+                              <button
+                                type="button"
+                                onClick={() => handleFieldChange("certifications", [])}
+                                className="text-xs text-red-500 hover:underline"
+                              >
+                                Remove all
+                              </button>
+                            </div>
+                          )}
                           {editMode ? (
                             <div className="space-y-4 hide-in-pdf">
-                              <div className="mb-1 flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleFieldChange("certifications", [])
-                                  }
-                                  className="text-xs text-red-500 hover:underline"
-                                >
-                                  Remove section
-                                </button>
-                              </div>
                               {certifications.map((cert, index) => (
                                 <div
                                   key={index}
@@ -1197,12 +1416,7 @@ const TemplateNew = () => {
                                     </span>
                                     {certifications.length > 1 && (
                                       <button
-                                        onClick={() => {
-                                          const updated = certifications.filter(
-                                            (_, i) => i !== index
-                                          );
-                                          handleFieldChange("certifications", updated);
-                                        }}
+                                        onClick={() => handleRemoveItem("certifications", index)}
                                         className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
                                       >
                                         Remove
@@ -1212,44 +1426,14 @@ const TemplateNew = () => {
                                   <input
                                     type="text"
                                     value={cert.name || cert.title || ""}
-                                    onChange={(e) => {
-                                      const updated = [...certifications];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        name: e.target.value,
-                                        title: e.target.value,
-                                      };
-                                      handleFieldChange("certifications", updated);
-                                    }}
+                                    onChange={(e) => handleArrayUpdate("certifications", index, "name", e.target.value)}
                                     className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
                                     placeholder="Certification Name (e.g., AWS Cloud Practitioner)"
                                   />
-                                  {cert.organization && (
-                                    <input
-                                      type="text"
-                                      value={cert.organization || ""}
-                                      onChange={(e) => {
-                                        const updated = [...certifications];
-                                        updated[index] = {
-                                          ...updated[index],
-                                          organization: e.target.value,
-                                        };
-                                        handleFieldChange("certifications", updated);
-                                      }}
-                                      className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                      placeholder="Issuing Organization (optional)"
-                                    />
-                                  )}
                                 </div>
                               ))}
                               <button
-                                onClick={() => {
-                                  const updated = [
-                                    ...certifications,
-                                    { name: "", title: "" },
-                                  ];
-                                  handleFieldChange("certifications", updated);
-                                }}
+                                onClick={() => handleAddItem("certifications", { name: "", title: "" })}
                                 className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
                               >
                                 + Add Certification
@@ -1261,7 +1445,6 @@ const TemplateNew = () => {
                                 .map((c) => c?.name || c?.title || "")
                                 .filter(Boolean)
                                 .map((cert, idx) => (
-                                  // eslint-disable-next-line react/no-array-index-key
                                   <li key={idx}>{cert}</li>
                                 ))}
                             </ul>
@@ -1291,7 +1474,7 @@ const TemplateNew = () => {
                     fontSize: "0.875rem",
                     color:
                       saveStatus.includes("Error") ||
-                        saveStatus.includes("Failed")
+                      saveStatus.includes("Failed")
                         ? "#ef4444"
                         : "#10b981",
                     fontWeight: 500,
@@ -1384,4 +1567,3 @@ const TemplateNew = () => {
 };
 
 export default TemplateNew;
-

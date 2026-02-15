@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from 'react-toastify';
+import { useLocation } from "react-router-dom";
 import Sidebar from "../Sidebar/Sidebar";
 import Navbar from "../Navbar/Navbar";
 import { useResume } from "../../context/ResumeContext";
 import resumeService from "../../services/resumeService";
 
-const Template1 = () => {
+const Template27 = () => {
   const resumeContext = useResume();
 
   // Handle case where context might not be properly initialized
@@ -16,7 +17,21 @@ const Template1 = () => {
   const [editMode, setEditMode] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
   const [isSavingToDatabase, setIsSavingToDatabase] = useState(false);
+  const routerLocation = useLocation();
+  const [downloadRequested, setDownloadRequested] = useState(false);
   const resumeRef = useRef();
+
+  // Auto-download trigger when coming from My Resumes
+  useEffect(() => {
+    if (routerLocation.state?.triggerDownload && resumeRef.current && !downloadRequested) {
+      setDownloadRequested(true);
+      // Small delay to ensure styles are fully loaded in the browser
+      setTimeout(() => {
+        const downloadBtn = document.querySelector('button[title="Download PDF"]');
+        if (downloadBtn) downloadBtn.click();
+      }, 1000);
+    }
+  }, [routerLocation.state, resumeRef, downloadRequested]);
 
   useEffect(() => {
     // Load data from localStorage first
@@ -867,4 +882,4 @@ const Template1 = () => {
   );
 };
 
-export default Template1;
+export default Template27;
