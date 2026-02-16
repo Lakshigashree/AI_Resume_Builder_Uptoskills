@@ -1,9 +1,13 @@
 /* eslint-disable no-unused-vars */
 import { MapPin, Phone, Mail, Linkedin, Github, Globe } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { toast } from "react-toastify";
 import Sidebar from "../Sidebar/Sidebar";
 import Navbar from "../Navbar/Navbar";
 import { useResume } from "../../context/ResumeContext";
+import { useAuth } from "../../context/AuthContext";
+import { getSafeUrl } from "../../utils/ResumeConfig";
+import html2pdf from "html2pdf.js";
 
 // ---------- DATA HELPERS / NORMALIZATION (aligned with Template2) ----------
 
@@ -57,6 +61,16 @@ const EMPTY_CERTIFICATION = {
 };
 
 const safeArray = (val) => (Array.isArray(val) ? val : []);
+
+// ========== HELPER FUNCTION FOR SAFE TEXT RENDERING ==========
+const renderSafeText = (item) => {
+    if (!item) return "";
+    if (typeof item === "string") return item;
+    if (typeof item === "object") {
+        return item.title || item.name || item.language || item.degree || JSON.stringify(item);
+    }
+    return String(item);
+};
 
 // Strings used as fake placeholders – treat them as empty
 const PLACEHOLDERS = new Set([
@@ -280,10 +294,18 @@ const contactRowItemStyle = {
 
 const Template17 = () => {
     const resumeRef = useRef(null);
-    const { resumeData, setResumeData } = useResume();
+    const resumeContext = useResume();
+    const { isAuthenticated } = useAuth();
+
+    const resumeData = resumeContext?.resumeData || {};
+    const updateResumeData = resumeContext?.updateResumeData;
+    const sectionOrder = resumeContext?.sectionOrder || [];
 
     const [editMode, setEditMode] = useState(false);
-    const [localData, setLocalData] = useState(buildEditingState(resumeData));
+    const [localData, setLocalData] = useState(null);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [isPreviewing, setIsPreviewing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         setLocalData(buildEditingState(resumeData));
@@ -406,15 +428,200 @@ const Template17 = () => {
         });
     };
 
-    const handleSave = () => {
-        const cleaned = normalizeData(localData);
-        setResumeData(cleaned);
-        setEditMode(false);
+    const handleSave = async () => {
+        if (!localData) return;
+        
+        setIsSaving(true);
+        try {
+            const cleaned = normalizeData(localData);
+            if (updateResumeData) {
+                await updateResumeData(cleaned);
+            }
+            setEditMode(false);
+            toast.success("✅ Changes saved successfully!");
+        } catch (error) {
+            console.error("Save error:", error);
+            toast.error("❌ Failed to save changes");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleCancel = () => {
         setLocalData(buildEditingState(resumeData));
         setEditMode(false);
+        toast.info("Changes discarded");
+    };
+
+    // ========== DOWNLOAD FUNCTIONALITY ==========
+    const handleDownload = async () => {
+        const element = resumeRef.current;
+        if (!element) {
+            toast.error('Resume content not found');
+            return;
+        }
+
+        if (isDownloading) return;
+        setIsDownloading(true);
+
+        // Store original styles
+        const originalHeight = element.style.height;
+        const originalOverflow = element.style.overflow;
+        
+        // Temporarily adjust for PDF capture
+        element.style.height = 'auto';
+        element.style.overflow = 'visible';
+
+        const options = {
+            margin: [5, 5, 5, 5],
+            filename: `${localData?.name?.replace(/\s+/g, '_') || 'Resume'}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            enableLinks: true,
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true, 
+                letterRendering: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                allowTaint: false,
+                ignoreElements: (element) => {
+                    return element.getAttribute('data-html2canvas-ignore') === 'true' ||
+                           element.classList.contains('hide-in-pdf') ||
+                           element.tagName === 'BUTTON' ||
+                           element.closest('button') !== null;
+                }
+            },
+            jsPDF: { 
+                unit: 'mm', 
+                format: 'a4', 
+                orientation: 'portrait',
+                compress: true
+            },
+            pagebreak: { mode: ['css', 'legacy'] }
+        };
+
+        toast.info('📄 Generating PDF...', { autoClose: false, toastId: 'pdf-toast' });
+
+        try {
+            // Add a class to hide edit controls during PDF generation
+            const editControls = document.querySelectorAll('.hide-in-pdf');
+            editControls.forEach(el => el.setAttribute('data-pdf-hide', 'true'));
+            
+            await html2pdf()
+                .set(options)
+                .from(element)
+                .save();
+            
+            // Restore edit controls
+            editControls.forEach(el => el.removeAttribute('data-pdf-hide'));
+            
+            toast.update('pdf-toast', { 
+                render: '✅ Download complete!', 
+                type: 'success', 
+                autoClose: 3000 
+            });
+        } catch (err) {
+            console.error('PDF Error:', err);
+            toast.update('pdf-toast', { 
+                render: '❌ Download failed', 
+                type: 'error', 
+                autoClose: 3000 
+            });
+        } finally {
+            // Restore original styles
+            element.style.height = originalHeight;
+            element.style.overflow = originalOverflow;
+            setIsDownloading(false);
+        }
+    };
+
+    // ========== PREVIEW FUNCTIONALITY ==========
+    const handlePreview = async () => {
+        const element = resumeRef.current;
+        if (!element) {
+            toast.error('Resume content not found');
+            return;
+        }
+
+        if (isPreviewing) return;
+        setIsPreviewing(true);
+
+        // Store original styles
+        const originalHeight = element.style.height;
+        const originalOverflow = element.style.overflow;
+        
+        // Temporarily adjust for PDF capture
+        element.style.height = 'auto';
+        element.style.overflow = 'visible';
+
+        const options = {
+            margin: [5, 5, 5, 5],
+            filename: 'preview.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            enableLinks: true,
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true, 
+                letterRendering: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                allowTaint: false,
+                ignoreElements: (element) => {
+                    return element.getAttribute('data-html2canvas-ignore') === 'true' ||
+                           element.classList.contains('hide-in-pdf') ||
+                           element.tagName === 'BUTTON' ||
+                           element.closest('button') !== null;
+                }
+            },
+            jsPDF: { 
+                unit: 'mm', 
+                format: 'a4', 
+                orientation: 'portrait',
+                compress: true
+            },
+            pagebreak: { mode: ['css', 'legacy'] }
+        };
+
+        toast.info('📄 Generating preview...', { autoClose: false, toastId: 'preview-toast' });
+
+        try {
+            // Hide edit controls during preview
+            const editControls = document.querySelectorAll('.hide-in-pdf');
+            editControls.forEach(el => el.setAttribute('data-pdf-hide', 'true'));
+            
+            const pdf = await html2pdf()
+                .set(options)
+                .from(element)
+                .toPdf()
+                .get('pdf');
+
+            const blob = pdf.output('blob');
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            
+            // Restore edit controls
+            editControls.forEach(el => el.removeAttribute('data-pdf-hide'));
+            
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+            toast.update('preview-toast', { 
+                render: '✅ Preview opened in new tab!', 
+                type: 'success', 
+                autoClose: 3000 
+            });
+        } catch (err) {
+            console.error('Preview Error:', err);
+            toast.update('preview-toast', { 
+                render: '❌ Preview failed', 
+                type: 'error', 
+                autoClose: 3000 
+            });
+        } finally {
+            // Restore original styles
+            element.style.height = originalHeight;
+            element.style.overflow = originalOverflow;
+            setIsPreviewing(false);
+        }
     };
 
     const sectionTitleStyle = {
@@ -431,24 +638,1128 @@ const Template17 = () => {
         marginBottom: "1rem",
     };
 
+    // Show loading if no data
+    if (!localData) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading resume...</p>
+                </div>
+            </div>
+        );
+    }
+
     // View data (normalized)
     const viewData = normalizeData(resumeData);
 
     const showSummary = hasText(viewData.summary);
-    const showExperience = safeArray(viewData.experience).some(
-        hasExperienceContent
-    );
-    const showEducation = safeArray(viewData.education).some(
-        hasEducationContent
-    );
+    const showExperience = safeArray(viewData.experience).some(hasExperienceContent);
+    const showEducation = safeArray(viewData.education).some(hasEducationContent);
     const showProjects = safeArray(viewData.projects).some(hasProjectContent);
-    const showCertifications = safeArray(viewData.certifications).some(
-        hasCertificationContent
-    );
+    const showCertifications = safeArray(viewData.certifications).some(hasCertificationContent);
     const showSkills = safeArray(viewData.skills).some(hasText);
     const showAchievements = safeArray(viewData.achievements).some(hasText);
     const showLanguages = safeArray(viewData.languages).some(hasText);
     const showInterests = safeArray(viewData.interests).some(hasText);
+
+    // Map section keys to their display components
+    const sectionComponents = {
+        summary: (editMode || showSummary) && (
+            <div key="summary" style={{ marginBottom: "1.5rem" }}>
+                <h3 style={{ ...sectionTitleStyle, fontSize: "1.7rem", fontWeight: 700 }}>
+                    Summary
+                </h3>
+                <hr style={sectionDivider} />
+                {editMode ? (
+                    <textarea
+                        value={localData.summary || ""}
+                        onChange={(e) => handleFieldChange("summary", e.target.value)}
+                        placeholder="Write a short professional summary..."
+                        style={{ width: "100%", minHeight: "4rem" }}
+                        className="hide-in-pdf"
+                    />
+                ) : (
+                    <p>{renderSafeText(viewData.summary)}</p>
+                )}
+            </div>
+        ),
+
+        experience: (editMode || showExperience) && (
+            <div key="experience" style={{ marginBottom: "1.5rem" }}>
+                <h3 style={{ ...sectionTitleStyle, fontSize: "1.7rem", fontWeight: 700 }}>
+                    Experience
+                </h3>
+                <hr style={sectionDivider} />
+
+                {editMode
+                    ? safeArray(localData.experience).map((exp, idx) => (
+                        <div
+                            key={idx}
+                            style={{
+                                marginBottom: "1rem",
+                                borderBottom: "1px dashed #e5e7eb",
+                                paddingBottom: "0.75rem",
+                            }}
+                            className="hide-in-pdf"
+                        >
+                            <input
+                                type="text"
+                                value={exp.title || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("experience", idx, "title", e.target.value)
+                                }
+                                placeholder="Job Title"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={exp.companyName || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("experience", idx, "companyName", e.target.value)
+                                }
+                                placeholder="Company"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={exp.date || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("experience", idx, "date", e.target.value)
+                                }
+                                placeholder="YYYY - YYYY"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={exp.companyLocation || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("experience", idx, "companyLocation", e.target.value)
+                                }
+                                placeholder="City, Country"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <textarea
+                                value={safeArray(exp.accomplishment).join("\n")}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("experience", idx, "accomplishment", e.target.value.split("\n"))
+                                }
+                                placeholder="Describe your work (one bullet per line)"
+                                style={{
+                                    width: "100%",
+                                    minHeight: "3rem",
+                                    marginTop: "0.25rem",
+                                }}
+                            />
+                            <div style={{ marginTop: "0.5rem" }}>
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveRow("experience", idx)}
+                                    style={{
+                                        fontSize: "0.8rem",
+                                        padding: "0.25rem 0.5rem",
+                                        borderRadius: "0.25rem",
+                                        border: "1px solid #ef4444",
+                                        color: "#ef4444",
+                                        background: "white",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Remove Experience
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                    : safeArray(viewData.experience)
+                        .filter(hasExperienceContent)
+                        .map((exp, idx) => (
+                            <div key={idx} style={{ marginBottom: "1rem" }}>
+                                <p style={{ margin: 0 }}>
+                                    {hasText(exp.title) && <strong>{renderSafeText(exp.title)}</strong>}
+                                    {hasText(exp.companyName) && (
+                                        <> — {renderSafeText(exp.companyName)}</>
+                                    )}
+                                    {hasText(exp.date) && <> ({renderSafeText(exp.date)})</>}
+                                    {hasText(exp.companyLocation) && (
+                                        <>
+                                            <br />
+                                            <em>{renderSafeText(exp.companyLocation)}</em>
+                                        </>
+                                    )}
+                                </p>
+                                {hasNonEmptyStringArray(exp.accomplishment) && (
+                                    <ul
+                                        style={{
+                                            paddingLeft: "1.25rem",
+                                            lineHeight: "1.6",
+                                            marginTop: "0.25rem",
+                                        }}
+                                    >
+                                        {safeArray(exp.accomplishment)
+                                            .filter(hasText)
+                                            .map((a, i) => (
+                                                <li key={i}>{renderSafeText(a)}</li>
+                                            ))}
+                                    </ul>
+                                )}
+                            </div>
+                        ))}
+
+                {editMode && (
+                    <div style={{ marginTop: "0.5rem" }} className="hide-in-pdf">
+                        <button
+                            type="button"
+                            onClick={() => handleAddRow("experience")}
+                            style={{
+                                fontSize: "0.85rem",
+                                padding: "0.35rem 0.75rem",
+                                borderRadius: "0.375rem",
+                                border: "1px solid #3b82f6",
+                                color: "#3b82f6",
+                                background: "white",
+                                marginRight: "0.5rem",
+                                cursor: "pointer",
+                            }}
+                        >
+                            + Add Experience
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleClearSection("experience")}
+                            style={{
+                                fontSize: "0.85rem",
+                                padding: "0.35rem 0.75rem",
+                                borderRadius: "0.375rem",
+                                border: "1px solid #6b7280",
+                                color: "#6b7280",
+                                background: "white",
+                                cursor: "pointer",
+                            }}
+                        >
+                            Remove Experience Section
+                        </button>
+                    </div>
+                )}
+            </div>
+        ),
+
+        education: (editMode || showEducation) && (
+            <div key="education" style={{ marginBottom: "1.5rem" }}>
+                <h3 style={{ ...sectionTitleStyle, fontSize: "1.7rem", fontWeight: 700 }}>
+                    Education
+                </h3>
+                <hr style={sectionDivider} />
+
+                {editMode
+                    ? safeArray(localData.education).map((edu, idx) => (
+                        <div
+                            key={idx}
+                            style={{
+                                marginBottom: "1rem",
+                                borderBottom: "1px dashed #e5e7eb",
+                                paddingBottom: "0.75rem",
+                            }}
+                            className="hide-in-pdf"
+                        >
+                            <input
+                                type="text"
+                                value={edu.degree || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("education", idx, "degree", e.target.value)
+                                }
+                                placeholder="Degree"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={edu.institution || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("education", idx, "institution", e.target.value)
+                                }
+                                placeholder="Institution"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={edu.duration || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("education", idx, "duration", e.target.value)
+                                }
+                                placeholder="YYYY - YYYY"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={edu.location || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("education", idx, "location", e.target.value)
+                                }
+                                placeholder="City, Country"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <div style={{ marginTop: "0.5rem" }}>
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveRow("education", idx)}
+                                    style={{
+                                        fontSize: "0.8rem",
+                                        padding: "0.25rem 0.5rem",
+                                        borderRadius: "0.25rem",
+                                        border: "1px solid #ef4444",
+                                        color: "#ef4444",
+                                        background: "white",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Remove Education
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                    : safeArray(viewData.education)
+                        .filter(hasEducationContent)
+                        .map((edu, idx) => (
+                            <p key={idx}>
+                                {hasText(edu.degree) && (
+                                    <strong>{renderSafeText(edu.degree)}</strong>
+                                )}
+                                {hasText(edu.institution) && (
+                                    <> — {renderSafeText(edu.institution)}</>
+                                )}
+                                {hasText(edu.duration) && <> ({renderSafeText(edu.duration)})</>}
+                                {hasText(edu.location) && <> — {renderSafeText(edu.location)}</>}
+                            </p>
+                        ))}
+
+                {editMode && (
+                    <div style={{ marginTop: "0.5rem" }} className="hide-in-pdf">
+                        <button
+                            type="button"
+                            onClick={() => handleAddRow("education")}
+                            style={{
+                                fontSize: "0.85rem",
+                                padding: "0.35rem 0.75rem",
+                                borderRadius: "0.375rem",
+                                border: "1px solid #3b82f6",
+                                color: "#3b82f6",
+                                background: "white",
+                                marginRight: "0.5rem",
+                                cursor: "pointer",
+                            }}
+                        >
+                            + Add Education
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleClearSection("education")}
+                            style={{
+                                fontSize: "0.85rem",
+                                padding: "0.35rem 0.75rem",
+                                borderRadius: "0.375rem",
+                                border: "1px solid #6b7280",
+                                color: "#6b7280",
+                                background: "white",
+                                cursor: "pointer",
+                            }}
+                        >
+                            Remove Education Section
+                        </button>
+                    </div>
+                )}
+            </div>
+        ),
+
+        projects: (editMode || showProjects) && (
+            <div key="projects" style={{ marginBottom: "1.5rem" }}>
+                <h3 style={{ ...sectionTitleStyle, fontSize: "1.7rem", fontWeight: 700 }}>
+                    Projects
+                </h3>
+                <hr style={sectionDivider} />
+
+                {editMode
+                    ? safeArray(localData.projects).map((project, idx) => (
+                        <div
+                            key={idx}
+                            style={{
+                                marginBottom: "1rem",
+                                borderBottom: "1px dashed #e5e7eb",
+                                paddingBottom: "0.75rem",
+                            }}
+                            className="hide-in-pdf"
+                        >
+                            <input
+                                type="text"
+                                value={project.name || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("projects", idx, "name", e.target.value)
+                                }
+                                placeholder="Project Name"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <textarea
+                                value={project.description || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("projects", idx, "description", e.target.value)
+                                }
+                                placeholder="Short project description."
+                                style={{
+                                    width: "100%",
+                                    minHeight: "3rem",
+                                    marginBottom: "0.25rem",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={safeArray(project.technologies).join(", ")}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("projects", idx, "technologies", e.target.value.split(",").map((t) => t.trim()).filter(Boolean))
+                                }
+                                placeholder="Technologies (comma separated)"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={project.link || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("projects", idx, "link", e.target.value)
+                                }
+                                placeholder="Live link (optional)"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={project.github || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("projects", idx, "github", e.target.value)
+                                }
+                                placeholder="GitHub link (optional)"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <div style={{ marginTop: "0.5rem" }}>
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveRow("projects", idx)}
+                                    style={{
+                                        fontSize: "0.8rem",
+                                        padding: "0.25rem 0.5rem",
+                                        borderRadius: "0.25rem",
+                                        border: "1px solid #ef4444",
+                                        color: "#ef4444",
+                                        background: "white",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Remove Project
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                    : safeArray(viewData.projects)
+                        .filter(hasProjectContent)
+                        .map((project, idx) => (
+                            <div key={idx} style={{ marginBottom: "1rem" }}>
+                                {hasText(project.name) && (
+                                    <p style={{ margin: 0, fontWeight: 600 }}>
+                                        {renderSafeText(project.name)}
+                                    </p>
+                                )}
+                                {hasText(project.description) && (
+                                    <p style={{ margin: "0.1rem 0" }}>
+                                        {renderSafeText(project.description)}
+                                    </p>
+                                )}
+                                {safeArray(project.technologies).length > 0 && (
+                                    <p style={{ margin: "0.1rem 0", fontSize: "0.9rem" }}>
+                                        <strong>Tech:</strong>{" "}
+                                        {safeArray(project.technologies).map(t => renderSafeText(t)).join(", ")}
+                                    </p>
+                                )}
+                                {(hasText(project.link) || hasText(project.github)) && (
+                                    <p style={{ margin: "0.1rem 0", fontSize: "0.9rem" }}>
+                                        {hasText(project.link) && (
+                                            <>
+                                                <a
+                                                    href={getSafeUrl("portfolio", project.link)}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    style={{ color: "#2563eb" }}
+                                                >
+                                                    Live
+                                                </a>
+                                                {hasText(project.github) ? " · " : ""}
+                                            </>
+                                        )}
+                                        {hasText(project.github) && (
+                                            <a
+                                                href={getSafeUrl("github", project.github)}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                style={{ color: "#2563eb" }}
+                                            >
+                                                GitHub
+                                            </a>
+                                        )}
+                                    </p>
+                                )}
+                            </div>
+                        ))}
+
+                {editMode && (
+                    <div style={{ marginTop: "0.5rem" }} className="hide-in-pdf">
+                        <button
+                            type="button"
+                            onClick={() => handleAddRow("projects")}
+                            style={{
+                                fontSize: "0.85rem",
+                                padding: "0.35rem 0.75rem",
+                                borderRadius: "0.375rem",
+                                border: "1px solid #3b82f6",
+                                color: "#3b82f6",
+                                background: "white",
+                                marginRight: "0.5rem",
+                                cursor: "pointer",
+                            }}
+                        >
+                            + Add Project
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleClearSection("projects")}
+                            style={{
+                                fontSize: "0.85rem",
+                                padding: "0.35rem 0.75rem",
+                                borderRadius: "0.375rem",
+                                border: "1px solid #6b7280",
+                                color: "#6b7280",
+                                background: "white",
+                                cursor: "pointer",
+                            }}
+                        >
+                            Remove Projects Section
+                        </button>
+                    </div>
+                )}
+            </div>
+        ),
+
+        certifications: (editMode || showCertifications) && (
+            <div key="certifications" style={{ marginBottom: "1.5rem" }}>
+                <h3 style={{ ...sectionTitleStyle, fontSize: "1.7rem", fontWeight: 700 }}>
+                    Certifications
+                </h3>
+                <hr style={sectionDivider} />
+
+                {editMode
+                    ? safeArray(localData.certifications).map((cert, idx) => (
+                        <div
+                            key={idx}
+                            style={{
+                                marginBottom: "1rem",
+                                borderBottom: "1px dashed #e5e7eb",
+                                paddingBottom: "0.75rem",
+                            }}
+                            className="hide-in-pdf"
+                        >
+                            <input
+                                type="text"
+                                value={cert.title || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("certifications", idx, "title", e.target.value)
+                                }
+                                placeholder="Certification Title"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={cert.issuer || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("certifications", idx, "issuer", e.target.value)
+                                }
+                                placeholder="Issuer"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={cert.date || ""}
+                                onChange={(e) =>
+                                    handleArrayFieldChange("certifications", idx, "date", e.target.value)
+                                }
+                                placeholder="Date"
+                                style={{
+                                    display: "block",
+                                    width: "100%",
+                                    marginBottom: "0.25rem",
+                                    border: "none",
+                                    borderBottom: "1px solid #d1d5db",
+                                    background: "transparent",
+                                    outline: "none",
+                                }}
+                            />
+                            <div style={{ marginTop: "0.5rem" }}>
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveRow("certifications", idx)}
+                                    style={{
+                                        fontSize: "0.8rem",
+                                        padding: "0.25rem 0.5rem",
+                                        borderRadius: "0.25rem",
+                                        border: "1px solid #ef4444",
+                                        color: "#ef4444",
+                                        background: "white",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Remove Certification
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                    : safeArray(viewData.certifications)
+                        .filter(hasCertificationContent)
+                        .map((cert, idx) => (
+                            <p key={idx}>
+                                {hasText(cert.title) && (
+                                    <strong>{renderSafeText(cert.title)}</strong>
+                                )}
+                                {hasText(cert.issuer) && <> — {renderSafeText(cert.issuer)}</>}
+                                {hasText(cert.date) && <> ({renderSafeText(cert.date)})</>}
+                            </p>
+                        ))}
+
+                {editMode && (
+                    <div style={{ marginTop: "0.5rem" }} className="hide-in-pdf">
+                        <button
+                            type="button"
+                            onClick={() => handleAddRow("certifications")}
+                            style={{
+                                fontSize: "0.85rem",
+                                padding: "0.35rem 0.75rem",
+                                borderRadius: "0.375rem",
+                                border: "1px solid #3b82f6",
+                                color: "#3b82f6",
+                                background: "white",
+                                marginRight: "0.5rem",
+                                cursor: "pointer",
+                            }}
+                        >
+                            + Add Certification
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleClearSection("certifications")}
+                            style={{
+                                fontSize: "0.85rem",
+                                padding: "0.35rem 0.75rem",
+                                borderRadius: "0.375rem",
+                                border: "1px solid #6b7280",
+                                color: "#6b7280",
+                                background: "white",
+                                cursor: "pointer",
+                            }}
+                        >
+                            Remove Certifications Section
+                        </button>
+                    </div>
+                )}
+            </div>
+        ),
+
+        achievements: (editMode || showAchievements) && (
+            <div key="achievements" style={{ marginBottom: "1.5rem" }}>
+                <h3 style={{ ...sectionTitleStyle, fontSize: "1.7rem", fontWeight: 700 }}>
+                    Achievements
+                </h3>
+                <hr style={sectionDivider} />
+
+                {editMode ? (
+                    <>
+                        {safeArray(localData.achievements).map((item, idx) => (
+                            <div
+                                key={idx}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    marginBottom: "0.5rem",
+                                }}
+                                className="hide-in-pdf"
+                            >
+                                <input
+                                    type="text"
+                                    value={item}
+                                    onChange={(e) => handleSimpleListChange("achievements", idx, e.target.value)}
+                                    placeholder="New Achievement"
+                                    style={{
+                                        flexGrow: 1,
+                                        border: "none",
+                                        borderBottom: "1px solid #d1d5db",
+                                        background: "transparent",
+                                        outline: "none",
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveRow("achievements", idx)}
+                                    style={{
+                                        marginLeft: "0.5rem",
+                                        fontSize: "0.75rem",
+                                        padding: "0.25rem 0.5rem",
+                                        borderRadius: "0.25rem",
+                                        border: "1px solid #ef4444",
+                                        color: "#ef4444",
+                                        background: "white",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    X
+                                </button>
+                            </div>
+                        ))}
+                        <div style={{ marginTop: "0.5rem" }} className="hide-in-pdf">
+                            <button
+                                type="button"
+                                onClick={() => handleAddRow("achievements")}
+                                style={{
+                                    fontSize: "0.85rem",
+                                    padding: "0.35rem 0.75rem",
+                                    borderRadius: "0.375rem",
+                                    border: "1px solid #3b82f6",
+                                    color: "#3b82f6",
+                                    background: "white",
+                                    marginRight: "0.5rem",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                + Add Achievement
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleClearSection("achievements")}
+                                style={{
+                                    fontSize: "0.85rem",
+                                    padding: "0.35rem 0.75rem",
+                                    borderRadius: "0.375rem",
+                                    border: "1px solid #6b7280",
+                                    color: "#6b7280",
+                                    background: "white",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                Remove Achievements Section
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <ul style={{ paddingLeft: "1.25rem", lineHeight: "1.6", margin: 0 }}>
+                        {safeArray(viewData.achievements)
+                            .filter(hasText)
+                            .map((item, i) => (
+                                <li key={i}>{renderSafeText(item)}</li>
+                            ))}
+                    </ul>
+                )}
+            </div>
+        ),
+
+        skills: (editMode || showSkills) && (
+            <div key="skills" style={{ marginBottom: "1.5rem" }}>
+                <h3 style={{ ...sectionTitleStyle, fontSize: "1.7rem", fontWeight: 700 }}>
+                    Skills
+                </h3>
+                <hr style={sectionDivider} />
+
+                {editMode ? (
+                    <>
+                        {safeArray(localData.skills).map((item, idx) => (
+                            <div
+                                key={idx}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    marginBottom: "0.5rem",
+                                }}
+                                className="hide-in-pdf"
+                            >
+                                <input
+                                    type="text"
+                                    value={item}
+                                    onChange={(e) => handleSimpleListChange("skills", idx, e.target.value)}
+                                    placeholder="New Skill"
+                                    style={{
+                                        flexGrow: 1,
+                                        border: "none",
+                                        borderBottom: "1px solid #d1d5db",
+                                        background: "transparent",
+                                        outline: "none",
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveRow("skills", idx)}
+                                    style={{
+                                        marginLeft: "0.5rem",
+                                        fontSize: "0.75rem",
+                                        padding: "0.25rem 0.5rem",
+                                        borderRadius: "0.25rem",
+                                        border: "1px solid #ef4444",
+                                        color: "#ef4444",
+                                        background: "white",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    X
+                                </button>
+                            </div>
+                        ))}
+                        <div style={{ marginTop: "0.5rem" }} className="hide-in-pdf">
+                            <button
+                                type="button"
+                                onClick={() => handleAddRow("skills")}
+                                style={{
+                                    fontSize: "0.85rem",
+                                    padding: "0.35rem 0.75rem",
+                                    borderRadius: "0.375rem",
+                                    border: "1px solid #3b82f6",
+                                    color: "#3b82f6",
+                                    background: "white",
+                                    marginRight: "0.5rem",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                + Add Skill
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleClearSection("skills")}
+                                style={{
+                                    fontSize: "0.85rem",
+                                    padding: "0.35rem 0.75rem",
+                                    borderRadius: "0.375rem",
+                                    border: "1px solid #6b7280",
+                                    color: "#6b7280",
+                                    background: "white",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                Remove Skills Section
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <ul style={{ paddingLeft: "1.25rem", lineHeight: "1.6", margin: 0 }}>
+                        {safeArray(viewData.skills)
+                            .filter(hasText)
+                            .map((item, i) => (
+                                <li key={i}>{renderSafeText(item)}</li>
+                            ))}
+                    </ul>
+                )}
+            </div>
+        ),
+
+        languages: (editMode || showLanguages) && (
+            <div key="languages" style={{ marginBottom: "1.5rem" }}>
+                <h3 style={{ ...sectionTitleStyle, fontSize: "1.7rem", fontWeight: 700 }}>
+                    Languages
+                </h3>
+                <hr style={sectionDivider} />
+
+                {editMode ? (
+                    <>
+                        {safeArray(localData.languages).map((item, idx) => (
+                            <div
+                                key={idx}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    marginBottom: "0.5rem",
+                                }}
+                                className="hide-in-pdf"
+                            >
+                                <input
+                                    type="text"
+                                    value={item}
+                                    onChange={(e) => handleSimpleListChange("languages", idx, e.target.value)}
+                                    placeholder="New Language"
+                                    style={{
+                                        flexGrow: 1,
+                                        border: "none",
+                                        borderBottom: "1px solid #d1d5db",
+                                        background: "transparent",
+                                        outline: "none",
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveRow("languages", idx)}
+                                    style={{
+                                        marginLeft: "0.5rem",
+                                        fontSize: "0.75rem",
+                                        padding: "0.25rem 0.5rem",
+                                        borderRadius: "0.25rem",
+                                        border: "1px solid #ef4444",
+                                        color: "#ef4444",
+                                        background: "white",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    X
+                                </button>
+                            </div>
+                        ))}
+                        <div style={{ marginTop: "0.5rem" }} className="hide-in-pdf">
+                            <button
+                                type="button"
+                                onClick={() => handleAddRow("languages")}
+                                style={{
+                                    fontSize: "0.85rem",
+                                    padding: "0.35rem 0.75rem",
+                                    borderRadius: "0.375rem",
+                                    border: "1px solid #3b82f6",
+                                    color: "#3b82f6",
+                                    background: "white",
+                                    marginRight: "0.5rem",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                + Add Language
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleClearSection("languages")}
+                                style={{
+                                    fontSize: "0.85rem",
+                                    padding: "0.35rem 0.75rem",
+                                    borderRadius: "0.375rem",
+                                    border: "1px solid #6b7280",
+                                    color: "#6b7280",
+                                    background: "white",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                Remove Languages Section
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <ul style={{ paddingLeft: "1.25rem", lineHeight: "1.6", margin: 0 }}>
+                        {safeArray(viewData.languages)
+                            .filter(hasText)
+                            .map((item, i) => (
+                                <li key={i}>{renderSafeText(item)}</li>
+                            ))}
+                    </ul>
+                )}
+            </div>
+        ),
+
+        interests: (editMode || showInterests) && (
+            <div key="interests" style={{ marginBottom: "1.5rem" }}>
+                <h3 style={{ ...sectionTitleStyle, fontSize: "1.7rem", fontWeight: 700 }}>
+                    Interests
+                </h3>
+                <hr style={sectionDivider} />
+
+                {editMode ? (
+                    <>
+                        {safeArray(localData.interests).map((item, idx) => (
+                            <div
+                                key={idx}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    marginBottom: "0.5rem",
+                                }}
+                                className="hide-in-pdf"
+                            >
+                                <input
+                                    type="text"
+                                    value={item}
+                                    onChange={(e) => handleSimpleListChange("interests", idx, e.target.value)}
+                                    placeholder="New Interest"
+                                    style={{
+                                        flexGrow: 1,
+                                        border: "none",
+                                        borderBottom: "1px solid #d1d5db",
+                                        background: "transparent",
+                                        outline: "none",
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveRow("interests", idx)}
+                                    style={{
+                                        marginLeft: "0.5rem",
+                                        fontSize: "0.75rem",
+                                        padding: "0.25rem 0.5rem",
+                                        borderRadius: "0.25rem",
+                                        border: "1px solid #ef4444",
+                                        color: "#ef4444",
+                                        background: "white",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    X
+                                </button>
+                            </div>
+                        ))}
+                        <div style={{ marginTop: "0.5rem" }} className="hide-in-pdf">
+                            <button
+                                type="button"
+                                onClick={() => handleAddRow("interests")}
+                                style={{
+                                    fontSize: "0.85rem",
+                                    padding: "0.35rem 0.75rem",
+                                    borderRadius: "0.375rem",
+                                    border: "1px solid #3b82f6",
+                                    color: "#3b82f6",
+                                    background: "white",
+                                    marginRight: "0.5rem",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                + Add Interest
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleClearSection("interests")}
+                                style={{
+                                    fontSize: "0.85rem",
+                                    padding: "0.35rem 0.75rem",
+                                    borderRadius: "0.375rem",
+                                    border: "1px solid #6b7280",
+                                    color: "#6b7280",
+                                    background: "white",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                Remove Interests Section
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <ul style={{ paddingLeft: "1.25rem", lineHeight: "1.6", margin: 0 }}>
+                        {safeArray(viewData.interests)
+                            .filter(hasText)
+                            .map((item, i) => (
+                                <li key={i}>{renderSafeText(item)}</li>
+                            ))}
+                    </ul>
+                )}
+            </div>
+        ),
+    };
 
     return (
         <div style={{ minHeight: "100vh", backgroundColor: "#f3f4f6" }}>
@@ -478,6 +1789,7 @@ const Template17 = () => {
                             fontFamily: "Arial, sans-serif",
                             boxSizing: "border-box",
                         }}
+                        data-resume-template="template17"
                     >
                         {/* ===== HEADER (cornered layout) ===== */}
                         <div style={{ marginBottom: "1.8rem" }}>
@@ -487,10 +1799,8 @@ const Template17 = () => {
                                     {editMode ? (
                                         <>
                                             <input
-                                                value={localData.name}
-                                                onChange={(e) =>
-                                                    handleFieldChange("name", e.target.value)
-                                                }
+                                                value={localData.name || ""}
+                                                onChange={(e) => handleFieldChange("name", e.target.value)}
                                                 placeholder="Your Name"
                                                 style={{
                                                     fontSize: "3.2rem",
@@ -500,12 +1810,11 @@ const Template17 = () => {
                                                     background: "transparent",
                                                     color: "#4B5563",
                                                 }}
+                                                className="hide-in-pdf"
                                             />
                                             <input
-                                                value={localData.role}
-                                                onChange={(e) =>
-                                                    handleFieldChange("role", e.target.value)
-                                                }
+                                                value={localData.role || ""}
+                                                onChange={(e) => handleFieldChange("role", e.target.value)}
                                                 placeholder="Your Role"
                                                 style={{
                                                     fontSize: "1.3rem",
@@ -516,6 +1825,7 @@ const Template17 = () => {
                                                     display: "block",
                                                     marginTop: "0.25rem",
                                                 }}
+                                                className="hide-in-pdf"
                                             />
                                         </>
                                     ) : (
@@ -528,7 +1838,7 @@ const Template17 = () => {
                                                         color: "#4B5563",
                                                     }}
                                                 >
-                                                    {viewData.name}
+                                                    {renderSafeText(viewData.name)}
                                                 </div>
                                             )}
                                             {hasText(viewData.role) && (
@@ -538,7 +1848,7 @@ const Template17 = () => {
                                                         color: "#3b82f6",
                                                     }}
                                                 >
-                                                    {viewData.role}
+                                                    {renderSafeText(viewData.role)}
                                                 </div>
                                             )}
                                         </>
@@ -546,7 +1856,7 @@ const Template17 = () => {
                                 </div>
                             </div>
 
-                            {/* Contact Row */}
+                            {/* Contact Row - All 5 links functional */}
                             <div
                                 style={{
                                     display: "grid",
@@ -561,16 +1871,18 @@ const Template17 = () => {
                                     {editMode ? (
                                         <>
                                             <input
-                                                value={localData.location}
+                                                value={localData.location || ""}
                                                 onChange={(e) => handleFieldChange("location", e.target.value)}
                                                 placeholder="Location"
                                                 style={contactInputStyle}
+                                                className="hide-in-pdf"
                                             />
                                             <input
-                                                value={localData.email}
+                                                value={localData.email || ""}
                                                 onChange={(e) => handleFieldChange("email", e.target.value)}
                                                 placeholder="Email"
                                                 style={contactInputStyle}
+                                                className="hide-in-pdf"
                                             />
                                         </>
                                     ) : (
@@ -578,35 +1890,41 @@ const Template17 = () => {
                                             {hasText(viewData.location) && (
                                                 <div style={contactRowItemStyle}>
                                                     <MapPin size={14} style={{ marginRight: "4px" }} />
-                                                    <span>{viewData.location}</span>
+                                                    <span>{renderSafeText(viewData.location)}</span>
                                                 </div>
                                             )}
                                             {hasText(viewData.email) && (
                                                 <div style={contactRowItemStyle}>
                                                     <Mail size={14} style={{ marginRight: "4px" }} />
-                                                    <span>{viewData.email}</span>
+                                                    <a
+                                                        href={getSafeUrl("email", viewData.email)}
+                                                        style={{ color: "inherit", textDecoration: "none" }}
+                                                    >
+                                                        {renderSafeText(viewData.email)}
+                                                    </a>
                                                 </div>
                                             )}
                                         </>
                                     )}
                                 </div>
 
-
                                 {/* CENTER COLUMN */}
                                 <div>
                                     {editMode ? (
                                         <>
                                             <input
-                                                value={localData.phone}
+                                                value={localData.phone || ""}
                                                 onChange={(e) => handleFieldChange("phone", e.target.value)}
                                                 placeholder="Phone"
                                                 style={contactInputStyle}
+                                                className="hide-in-pdf"
                                             />
                                             <input
-                                                value={localData.linkedin}
+                                                value={localData.linkedin || ""}
                                                 onChange={(e) => handleFieldChange("linkedin", e.target.value)}
                                                 placeholder="LinkedIn"
                                                 style={contactInputStyle}
+                                                className="hide-in-pdf"
                                             />
                                         </>
                                     ) : (
@@ -614,35 +1932,48 @@ const Template17 = () => {
                                             {hasText(viewData.phone) && (
                                                 <div style={contactRowItemStyle}>
                                                     <Phone size={14} style={{ marginRight: "4px" }} />
-                                                    <span>{viewData.phone}</span>
+                                                    <a
+                                                        href={getSafeUrl("phone", viewData.phone)}
+                                                        style={{ color: "inherit", textDecoration: "none" }}
+                                                    >
+                                                        {renderSafeText(viewData.phone)}
+                                                    </a>
                                                 </div>
                                             )}
                                             {hasText(viewData.linkedin) && (
                                                 <div style={contactRowItemStyle}>
                                                     <Linkedin size={14} style={{ marginRight: "4px" }} />
-                                                    <a href={viewData.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{viewData.linkedin}</a>
+                                                    <a
+                                                        href={getSafeUrl("linkedin", viewData.linkedin)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        style={{ color: "inherit", textDecoration: "none" }}
+                                                    >
+                                                        LinkedIn
+                                                    </a>
                                                 </div>
                                             )}
                                         </>
                                     )}
                                 </div>
 
-
                                 {/* RIGHT COLUMN */}
                                 <div>
                                     {editMode ? (
                                         <>
                                             <input
-                                                value={localData.github}
+                                                value={localData.github || ""}
                                                 onChange={(e) => handleFieldChange("github", e.target.value)}
                                                 placeholder="GitHub"
                                                 style={contactInputStyle}
+                                                className="hide-in-pdf"
                                             />
                                             <input
-                                                value={localData.portfolio}
+                                                value={localData.portfolio || ""}
                                                 onChange={(e) => handleFieldChange("portfolio", e.target.value)}
                                                 placeholder="Portfolio"
                                                 style={contactInputStyle}
+                                                className="hide-in-pdf"
                                             />
                                         </>
                                     ) : (
@@ -650,1036 +1981,87 @@ const Template17 = () => {
                                             {hasText(viewData.github) && (
                                                 <div style={contactRowItemStyle}>
                                                     <Github size={14} style={{ marginRight: "4px" }} />
-                                                    <a href={viewData.github} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{viewData.github}</a>
+                                                    <a
+                                                        href={getSafeUrl("github", viewData.github)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        style={{ color: "inherit", textDecoration: "none" }}
+                                                    >
+                                                        GitHub
+                                                    </a>
                                                 </div>
                                             )}
                                             {hasText(viewData.portfolio) && (
                                                 <div style={contactRowItemStyle}>
                                                     <Globe size={14} style={{ marginRight: "4px" }} />
-                                                    <a href={viewData.portfolio} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{viewData.portfolio}</a>
+                                                    <a
+                                                        href={getSafeUrl("portfolio", viewData.portfolio)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        style={{ color: "inherit", textDecoration: "none" }}
+                                                    >
+                                                        Portfolio
+                                                    </a>
                                                 </div>
                                             )}
                                         </>
                                     )}
                                 </div>
-
                             </div>
                         </div>
 
-                        {/* SUMMARY */}
-                        {(editMode || showSummary) && (
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <h3
-                                    style={{
-                                        ...sectionTitleStyle,
-                                        fontSize: "1.7rem",
-                                        fontWeight: 700,
-                                    }}
-                                >
-                                    Summary
-                                </h3>
-                                <hr style={sectionDivider} />
-                                {editMode ? (
-                                    <textarea
-                                        value={localData.summary}
-                                        onChange={(e) =>
-                                            handleFieldChange("summary", e.target.value)
-                                        }
-                                        placeholder="Write a short professional summary..."
-                                        style={{ width: "100%", minHeight: "4rem" }}
-                                    />
-                                ) : (
-                                    <p>{viewData.summary}</p>
-                                )}
-                            </div>
-                        )}
-
-                        {/* EXPERIENCE */}
-                        {(editMode || showExperience) && (
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <h3
-                                    style={{
-                                        ...sectionTitleStyle,
-                                        fontSize: "1.7rem",
-                                        fontWeight: 700,
-                                    }}
-                                >
-                                    Experience
-                                </h3>
-                                <hr style={sectionDivider} />
-
-                                {editMode
-                                    ? safeArray(localData.experience).map((exp, idx) => (
-                                        <div
-                                            key={idx}
-                                            style={{
-                                                marginBottom: "1rem",
-                                                borderBottom: "1px dashed #e5e7eb",
-                                                paddingBottom: "0.75rem",
-                                            }}
-                                        >
-                                            <input
-                                                type="text"
-                                                value={exp.title}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "experience",
-                                                        idx,
-                                                        "title",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Job Title"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={exp.companyName}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "experience",
-                                                        idx,
-                                                        "companyName",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Company"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={exp.date}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "experience",
-                                                        idx,
-                                                        "date",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="YYYY - YYYY"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={exp.companyLocation}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "experience",
-                                                        idx,
-                                                        "companyLocation",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="City, Country"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <textarea
-                                                value={safeArray(exp.accomplishment).join("\n")}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "experience",
-                                                        idx,
-                                                        "accomplishment",
-                                                        e.target.value.split("\n")
-                                                    )
-                                                }
-                                                placeholder="Describe your work (one bullet per line)"
-                                                style={{
-                                                    width: "100%",
-                                                    minHeight: "3rem",
-                                                    marginTop: "0.25rem",
-                                                }}
-                                            />
-                                            <div style={{ marginTop: "0.5rem" }}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleRemoveRow("experience", idx)
-                                                    }
-                                                    style={{
-                                                        fontSize: "0.8rem",
-                                                        padding: "0.25rem 0.5rem",
-                                                        borderRadius: "0.25rem",
-                                                        border: "1px solid #ef4444",
-                                                        color: "#ef4444",
-                                                        background: "white",
-                                                        cursor: "pointer",
-                                                    }}
-                                                >
-                                                    Remove Experience
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                    : safeArray(viewData.experience)
-                                        .filter(hasExperienceContent)
-                                        .map((exp, idx) => (
-                                            <div key={idx} style={{ marginBottom: "1rem" }}>
-                                                <p style={{ margin: 0 }}>
-                                                    {hasText(exp.title) && <strong>{exp.title}</strong>}
-                                                    {hasText(exp.companyName) && (
-                                                        <> — {exp.companyName}</>
-                                                    )}
-                                                    {hasText(exp.date) && <> ({exp.date})</>}
-                                                    {hasText(exp.companyLocation) && (
-                                                        <>
-                                                            <br />
-                                                            <em>{exp.companyLocation}</em>
-                                                        </>
-                                                    )}
-                                                </p>
-                                                {hasNonEmptyStringArray(exp.accomplishment) && (
-                                                    <ul
-                                                        style={{
-                                                            paddingLeft: "1.25rem",
-                                                            lineHeight: "1.6",
-                                                            marginTop: "0.25rem",
-                                                        }}
-                                                    >
-                                                        {safeArray(exp.accomplishment)
-                                                            .filter(hasText)
-                                                            .map((a, i) => (
-                                                                <li key={i}>{a}</li>
-                                                            ))}
-                                                    </ul>
-                                                )}
-                                            </div>
-                                        ))}
-
-                                {editMode && (
-                                    <div style={{ marginTop: "0.5rem" }}>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleAddRow("experience")}
-                                            style={{
-                                                fontSize: "0.85rem",
-                                                padding: "0.35rem 0.75rem",
-                                                borderRadius: "0.375rem",
-                                                border: "1px solid #3b82f6",
-                                                color: "#3b82f6",
-                                                background: "white",
-                                                marginRight: "0.5rem",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            + Add Experience
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleClearSection("experience")}
-                                            style={{
-                                                fontSize: "0.85rem",
-                                                padding: "0.35rem 0.75rem",
-                                                borderRadius: "0.375rem",
-                                                border: "1px solid #6b7280",
-                                                color: "#6b7280",
-                                                background: "white",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            Remove Experience Section
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* EDUCATION */}
-                        {(editMode || showEducation) && (
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <h3
-                                    style={{
-                                        ...sectionTitleStyle,
-                                        fontSize: "1.7rem",
-                                        fontWeight: 700,
-                                    }}
-                                >
-                                    Education
-                                </h3>
-                                <hr style={sectionDivider} />
-
-                                {editMode
-                                    ? safeArray(localData.education).map((edu, idx) => (
-                                        <div
-                                            key={idx}
-                                            style={{
-                                                marginBottom: "1rem",
-                                                borderBottom: "1px dashed #e5e7eb",
-                                                paddingBottom: "0.75rem",
-                                            }}
-                                        >
-                                            <input
-                                                type="text"
-                                                value={edu.degree}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "education",
-                                                        idx,
-                                                        "degree",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Degree"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={edu.institution}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "education",
-                                                        idx,
-                                                        "institution",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Institution"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={edu.duration}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "education",
-                                                        idx,
-                                                        "duration",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="YYYY - YYYY"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={edu.location}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "education",
-                                                        idx,
-                                                        "location",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="City, Country"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <div style={{ marginTop: "0.5rem" }}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleRemoveRow("education", idx)
-                                                    }
-                                                    style={{
-                                                        fontSize: "0.8rem",
-                                                        padding: "0.25rem 0.5rem",
-                                                        borderRadius: "0.25rem",
-                                                        border: "1px solid #ef4444",
-                                                        color: "#ef4444",
-                                                        background: "white",
-                                                        cursor: "pointer",
-                                                    }}
-                                                >
-                                                    Remove Education
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                    : safeArray(viewData.education)
-                                        .filter(hasEducationContent)
-                                        .map((edu, idx) => (
-                                            <p key={idx}>
-                                                {hasText(edu.degree) && (
-                                                    <strong>{edu.degree}</strong>
-                                                )}
-                                                {hasText(edu.institution) && (
-                                                    <> — {edu.institution}</>
-                                                )}
-                                                {hasText(edu.duration) && <> ({edu.duration})</>}
-                                                {hasText(edu.location) && <> — {edu.location}</>}
-                                            </p>
-                                        ))}
-
-                                {editMode && (
-                                    <div style={{ marginTop: "0.5rem" }}>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleAddRow("education")}
-                                            style={{
-                                                fontSize: "0.85rem",
-                                                padding: "0.35rem 0.75rem",
-                                                borderRadius: "0.375rem",
-                                                border: "1px solid #3b82f6",
-                                                color: "#3b82f6",
-                                                background: "white",
-                                                marginRight: "0.5rem",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            + Add Education
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleClearSection("education")}
-                                            style={{
-                                                fontSize: "0.85rem",
-                                                padding: "0.35rem 0.75rem",
-                                                borderRadius: "0.375rem",
-                                                border: "1px solid #6b7280",
-                                                color: "#6b7280",
-                                                background: "white",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            Remove Education Section
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* PROJECTS */}
-                        {(editMode || showProjects) && (
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <h3
-                                    style={{
-                                        ...sectionTitleStyle,
-                                        fontSize: "1.7rem",
-                                        fontWeight: 700,
-                                    }}
-                                >
-                                    Projects
-                                </h3>
-                                <hr style={sectionDivider} />
-
-                                {editMode
-                                    ? safeArray(localData.projects).map((project, idx) => (
-                                        <div
-                                            key={idx}
-                                            style={{
-                                                marginBottom: "1rem",
-                                                borderBottom: "1px dashed #e5e7eb",
-                                                paddingBottom: "0.75rem",
-                                            }}
-                                        >
-                                            <input
-                                                type="text"
-                                                value={project.name}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "projects",
-                                                        idx,
-                                                        "name",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Project Name"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <textarea
-                                                value={project.description}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "projects",
-                                                        idx,
-                                                        "description",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Short project description."
-                                                style={{
-                                                    width: "100%",
-                                                    minHeight: "3rem",
-                                                    marginBottom: "0.25rem",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={safeArray(project.technologies).join(", ")}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "projects",
-                                                        idx,
-                                                        "technologies",
-                                                        e.target.value
-                                                            .split(",")
-                                                            .map((t) => t.trim())
-                                                            .filter(Boolean)
-                                                    )
-                                                }
-                                                placeholder="Technologies (comma separated)"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={project.link}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "projects",
-                                                        idx,
-                                                        "link",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Live link (optional)"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={project.github}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "projects",
-                                                        idx,
-                                                        "github",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="GitHub link (optional)"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <div style={{ marginTop: "0.5rem" }}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveRow("projects", idx)}
-                                                    style={{
-                                                        fontSize: "0.8rem",
-                                                        padding: "0.25rem 0.5rem",
-                                                        borderRadius: "0.25rem",
-                                                        border: "1px solid #ef4444",
-                                                        color: "#ef4444",
-                                                        background: "white",
-                                                        cursor: "pointer",
-                                                    }}
-                                                >
-                                                    Remove Project
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                    : safeArray(viewData.projects)
-                                        .filter(hasProjectContent)
-                                        .map((project, idx) => (
-                                            <div key={idx} style={{ marginBottom: "1rem" }}>
-                                                {hasText(project.name) && (
-                                                    <p
-                                                        style={{
-                                                            margin: 0,
-                                                            fontWeight: 600,
-                                                        }}
-                                                    >
-                                                        {project.name}
-                                                    </p>
-                                                )}
-                                                {hasText(project.description) && (
-                                                    <p style={{ margin: "0.1rem 0" }}>
-                                                        {project.description}
-                                                    </p>
-                                                )}
-                                                {safeArray(project.technologies).length > 0 && (
-                                                    <p
-                                                        style={{
-                                                            margin: "0.1rem 0",
-                                                            fontSize: "0.9rem",
-                                                        }}
-                                                    >
-                                                        <strong>Tech:</strong>{" "}
-                                                        {safeArray(project.technologies).join(", ")}
-                                                    </p>
-                                                )}
-                                                {(hasText(project.link) || hasText(project.github)) && (
-                                                    <p
-                                                        style={{
-                                                            margin: "0.1rem 0",
-                                                            fontSize: "0.9rem",
-                                                        }}
-                                                    >
-                                                        {hasText(project.link) && (
-                                                            <>
-                                                                <a
-                                                                    href={project.link}
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-                                                                    style={{ color: "#2563eb" }}
-                                                                >
-                                                                    Live
-                                                                </a>
-                                                                {hasText(project.github) ? " · " : ""}
-                                                            </>
-                                                        )}
-                                                        {hasText(project.github) && (
-                                                            <a
-                                                                href={project.github}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                style={{ color: "#2563eb" }}
-                                                            >
-                                                                GitHub
-                                                            </a>
-                                                        )}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        ))}
-
-                                {editMode && (
-                                    <div style={{ marginTop: "0.5rem" }}>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleAddRow("projects")}
-                                            style={{
-                                                fontSize: "0.85rem",
-                                                padding: "0.35rem 0.75rem",
-                                                borderRadius: "0.375rem",
-                                                border: "1px solid #3b82f6",
-                                                color: "#3b82f6",
-                                                background: "white",
-                                                marginRight: "0.5rem",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            + Add Project
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleClearSection("projects")}
-                                            style={{
-                                                fontSize: "0.85rem",
-                                                padding: "0.35rem 0.75rem",
-                                                borderRadius: "0.375rem",
-                                                border: "1px solid #6b7280",
-                                                color: "#6b7280",
-                                                background: "white",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            Remove Projects Section
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* CERTIFICATIONS */}
-                        {(editMode || showCertifications) && (
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <h3
-                                    style={{
-                                        ...sectionTitleStyle,
-                                        fontSize: "1.7rem",
-                                        fontWeight: 700,
-                                    }}
-                                >
-                                    Certifications
-                                </h3>
-                                <hr style={sectionDivider} />
-
-                                {editMode
-                                    ? safeArray(localData.certifications).map((cert, idx) => (
-                                        <div
-                                            key={idx}
-                                            style={{
-                                                marginBottom: "1rem",
-                                                borderBottom: "1px dashed #e5e7eb",
-                                                paddingBottom: "0.75rem",
-                                            }}
-                                        >
-                                            <input
-                                                type="text"
-                                                value={cert.title}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "certifications",
-                                                        idx,
-                                                        "title",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Certification Title"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={cert.issuer}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "certifications",
-                                                        idx,
-                                                        "issuer",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Issuer"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={cert.date}
-                                                onChange={(e) =>
-                                                    handleArrayFieldChange(
-                                                        "certifications",
-                                                        idx,
-                                                        "date",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Date"
-                                                style={{
-                                                    display: "block",
-                                                    width: "100%",
-                                                    marginBottom: "0.25rem",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #d1d5db",
-                                                    background: "transparent",
-                                                    outline: "none",
-                                                }}
-                                            />
-                                            <div style={{ marginTop: "0.5rem" }}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleRemoveRow("certifications", idx)
-                                                    }
-                                                    style={{
-                                                        fontSize: "0.8rem",
-                                                        padding: "0.25rem 0.5rem",
-                                                        borderRadius: "0.25rem",
-                                                        border: "1px solid #ef4444",
-                                                        color: "#ef4444",
-                                                        background: "white",
-                                                        cursor: "pointer",
-                                                    }}
-                                                >
-                                                    Remove Certification
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                    : safeArray(viewData.certifications)
-                                        .filter(hasCertificationContent)
-                                        .map((cert, idx) => (
-                                            <p key={idx}>
-                                                {hasText(cert.title) && (
-                                                    <strong>{cert.title}</strong>
-                                                )}
-                                                {hasText(cert.issuer) && <> — {cert.issuer}</>}
-                                                {hasText(cert.date) && <> ({cert.date})</>}
-                                            </p>
-                                        ))}
-
-                                {editMode && (
-                                    <div style={{ marginTop: "0.5rem" }}>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleAddRow("certifications")}
-                                            style={{
-                                                fontSize: "0.85rem",
-                                                padding: "0.35rem 0.75rem",
-                                                borderRadius: "0.375rem",
-                                                border: "1px solid #3b82f6",
-                                                color: "#3b82f6",
-                                                background: "white",
-                                                marginRight: "0.5rem",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            + Add Certification
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleClearSection("certifications")}
-                                            style={{
-                                                fontSize: "0.85rem",
-                                                padding: "0.35rem 0.75rem",
-                                                borderRadius: "0.375rem",
-                                                border: "1px solid #6b7280",
-                                                color: "#6b7280",
-                                                background: "white",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            Remove Certifications Section
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* SKILLS / ACHIEVEMENTS / LANGUAGES / INTERESTS */}
-                        {["skills", "achievements", "languages", "interests"].map(
-                            (section) => {
-                                const label =
-                                    section.charAt(0).toUpperCase() + section.slice(1);
-                                const showSection =
-                                    section === "skills"
-                                        ? showSkills
-                                        : section === "achievements"
-                                            ? showAchievements
-                                            : section === "languages"
-                                                ? showLanguages
-                                                : showInterests;
-
-                                const viewList = viewData[section] || [];
-                                const editList = localData[section] || [];
-
-                                if (!editMode && !showSection) return null;
-
-                                return (
-                                    <div key={section} style={{ marginBottom: "1.5rem" }}>
-                                        <h3
-                                            style={{
-                                                ...sectionTitleStyle,
-                                                fontSize: "1.7rem",
-                                                fontWeight: 700,
-                                            }}
-                                        >
-                                            {label}
-                                        </h3>
-                                        <hr style={sectionDivider} />
-
-                                        {editMode ? (
-                                            <>
-                                                {safeArray(editList).map((item, idx) => (
-                                                    <div
-                                                        key={idx}
-                                                        style={{
-                                                            display: "flex",
-                                                            alignItems: "center",
-                                                            marginBottom: "0.5rem",
-                                                        }}
-                                                    >
-                                                        <input
-                                                            type="text"
-                                                            value={item}
-                                                            onChange={(e) =>
-                                                                handleSimpleListChange(
-                                                                    section,
-                                                                    idx,
-                                                                    e.target.value
-                                                                )
-                                                            }
-                                                            placeholder={`New ${label.slice(0, -1)}`}
-                                                            style={{
-                                                                flexGrow: 1,
-                                                                border: "none",
-                                                                borderBottom: "1px solid #d1d5db",
-                                                                background: "transparent",
-                                                                outline: "none",
-                                                            }}
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveRow(section, idx)}
-                                                            style={{
-                                                                marginLeft: "0.5rem",
-                                                                fontSize: "0.75rem",
-                                                                padding: "0.25rem 0.5rem",
-                                                                borderRadius: "0.25rem",
-                                                                border: "1px solid #ef4444",
-                                                                color: "#ef4444",
-                                                                background: "white",
-                                                                cursor: "pointer",
-                                                            }}
-                                                        >
-                                                            X
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                                <div style={{ marginTop: "0.5rem" }}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleAddRow(section)}
-                                                        style={{
-                                                            fontSize: "0.85rem",
-                                                            padding: "0.35rem 0.75rem",
-                                                            borderRadius: "0.375rem",
-                                                            border: "1px solid #3b82f6",
-                                                            color: "#3b82f6",
-                                                            background: "white",
-                                                            marginRight: "0.5rem",
-                                                            cursor: "pointer",
-                                                        }}
-                                                    >
-                                                        + Add {label.slice(0, -1)}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleClearSection(section)}
-                                                        style={{
-                                                            fontSize: "0.85rem",
-                                                            padding: "0.35rem 0.75rem",
-                                                            borderRadius: "0.375rem",
-                                                            border: "1px solid #6b7280",
-                                                            color: "#6b7280",
-                                                            background: "white",
-                                                            cursor: "pointer",
-                                                        }}
-                                                    >
-                                                        Remove {label} Section
-                                                    </button>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <ul
-                                                style={{
-                                                    paddingLeft: "1.25rem",
-                                                    lineHeight: "1.6",
-                                                    margin: 0,
-                                                }}
-                                            >
-                                                {safeArray(viewList)
-                                                    .filter(hasText)
-                                                    .map((item, i) => (
-                                                        <li key={i}>{item}</li>
-                                                    ))}
-                                            </ul>
-                                        )}
-                                    </div>
-                                );
-                            }
-                        )}
+                        {/* DYNAMIC SECTION RENDERING - Using sectionOrder */}
+                        {(sectionOrder && sectionOrder.length > 0 ? sectionOrder : [
+                            "summary", "experience", "education", "projects",
+                            "certifications", "achievements", "skills", "languages", "interests"
+                        ]).map((sectionKey) => sectionComponents[sectionKey] || null)}
                     </div>
 
-                    {/* Edit / Save controls */}
-                    <div style={{ marginTop: "1rem", textAlign: "center" }}>
+                    {/* Floating Edit/Save Controls */}
+                    <div
+                        style={{
+                            position: "fixed",
+                            bottom: "30px",
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            zIndex: 1000,
+                            backgroundColor: "white",
+                            padding: "1rem 2rem",
+                            borderRadius: "50px",
+                            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+                            display: "flex",
+                            gap: "1rem",
+                            border: "1px solid #e5e7eb"
+                        }}
+                    >
                         {editMode ? (
                             <>
                                 <button
                                     onClick={handleSave}
+                                    disabled={isSaving}
                                     style={{
-                                        backgroundColor: "#10b981",
+                                        backgroundColor: isSaving ? "#9ca3af" : "#10b981",
                                         color: "white",
-                                        padding: "0.5rem 1rem",
+                                        padding: "0.5rem 1.5rem",
                                         borderRadius: "0.375rem",
-                                        marginRight: "0.5rem",
                                         border: "none",
-                                        cursor: "pointer",
+                                        cursor: isSaving ? "not-allowed" : "pointer",
+                                        fontWeight: 600,
                                     }}
                                 >
-                                    Save
+                                    {isSaving ? "Saving..." : "Save Changes"}
                                 </button>
                                 <button
                                     onClick={handleCancel}
+                                    disabled={isSaving}
                                     style={{
                                         backgroundColor: "#6b7280",
                                         color: "white",
-                                        padding: "0.5rem 1rem",
+                                        padding: "0.5rem 1.5rem",
                                         borderRadius: "0.375rem",
                                         border: "none",
-                                        cursor: "pointer",
+                                        cursor: isSaving ? "not-allowed" : "pointer",
+                                        fontWeight: 600,
                                     }}
                                 >
                                     Cancel
@@ -1691,19 +2073,20 @@ const Template17 = () => {
                                 style={{
                                     backgroundColor: "#3b82f6",
                                     color: "white",
-                                    padding: "0.5rem 1rem",
+                                    padding: "0.5rem 1.5rem",
                                     borderRadius: "0.375rem",
                                     border: "none",
                                     cursor: "pointer",
+                                    fontWeight: 600,
                                 }}
                             >
-                                Edit
+                                Edit Resume
                             </button>
                         )}
                     </div>
                 </div>
             </div>
-        </div >
+        </div>
     );
 };
 
