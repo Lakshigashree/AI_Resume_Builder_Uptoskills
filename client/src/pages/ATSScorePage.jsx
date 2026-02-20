@@ -2,8 +2,15 @@ import React, { useState, useRef } from 'react';
 import { Upload, FileText, CheckCircle, XCircle, AlertCircle, TrendingUp, Loader2, Download, Info } from 'lucide-react';
 import Navbar from '../components/Navbar/Navbar.jsx';
 import { toast } from 'react-toastify';
-import resumeService from '../services/resumeService.js';
+import { useNavigate } from "react-router-dom";
+
+
+import resumeService, { analyzeATSFile, analyzeATSText } 
+from '../services/resumeService.js';
+
+
 import { useResume } from '../context/ResumeContext.jsx';
+
 
 const ATSScorePage = () => {
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -48,7 +55,8 @@ const ATSScorePage = () => {
     setError('');
 
     try {
-      const result = await resumeService.analyzeATSFile(uploadedFile);
+      const result = await analyzeATSFile(uploadedFile);
+
       
       if (result.success) {
         setAtsResult(result.data);
@@ -78,8 +86,11 @@ const ATSScorePage = () => {
     try {
       // Convert resume data to text
       const resumeText = resumeService.structuredDataToText(resumeData);
+
+
       
-      const result = await resumeService.analyzeATSText(resumeText, resumeData);
+      const result = await analyzeATSText(resumeText, resumeData);
+
       
       if (result.success) {
         setAtsResult(result.data);

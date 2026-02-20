@@ -7,6 +7,8 @@ import Navbar from "../components/Navbar/Navbar.jsx";
 import resumeService from "../services/resumeService.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
+
+
 const MyResumesPage = () => {
   const navigate = useNavigate();
   const [resumes, setResumes] = useState([]);
@@ -194,38 +196,21 @@ const MyResumesPage = () => {
     setShowPreview(true);
   };
 
-  const downloadResumePDF = async (resume) => {
-    // Show loading toast
-    const loadingToast = toast.loading(`Preparing "${resume.title}" for download...`);
+  const downloadResumePDF = (resume) => {
+  const templateId = resume.template_id || resume.templateId || 1;
 
-    try {
-      const resumeText = resume.rawText || resumeService.structuredDataToText(resume);
-
-      // Create a temporary element to trigger download
-      const element = document.createElement('div');
-      element.innerHTML = resumeText.split('\n').map(line => `<p>${line}</p>`).join('');
-
-      const html2pdf = (await import('html2pdf.js')).default;
-      await html2pdf().from(element).save(`${resume.title}.pdf`);
-
-      // Update loading toast to success
-      toast.update(loadingToast, {
-        render: `"${resume.title}" downloaded successfully!`,
-        type: "success",
-        isLoading: false,
-        autoClose: 3000
-      });
-    } catch (err) {
-      console.error('Download error:', err);
-      // Update loading toast to error
-      toast.update(loadingToast, {
-        render: `Failed to download "${resume.title}"`,
-        type: "error",
-        isLoading: false,
-        autoClose: 3000
-      });
+  navigate(`/template${templateId}`, {
+    state: {
+      buildType: 'template',
+      resumeData: resume,
+      resumeName: resume.title,
+      autoDownload: true   // 👈 IMPORTANT FLAG
     }
-  };
+  });
+};
+
+
+    
 
   if (!isAuthenticated) {
     return null;

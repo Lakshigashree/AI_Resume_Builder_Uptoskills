@@ -1,14 +1,37 @@
-/* server/routes/geminiRoutes.js */
 const express = require("express");
 const router = express.Router();
-// Temporarily bypass authentication to verify AI functionality
-// const { authenticateToken } = require("../middleware/auth"); 
-const { enhanceSection } = require("../controllers/geminiController");
+const { getEnhancedText } = require("../services/geminiService");
 
-/**
- * Route: POST /api/ai/enhance
- * Description: Sends section data to Gemini AI for professional rewriting
- */
-router.post("/enhance", enhanceSection);
+router.post("/", async (req, res) => {
+  try {
+    const { section, data, targetRole } = req.body;
+
+    if (!data) {
+      return res.status(400).json({ error: "No resume content provided" });
+    }
+
+    const prompt = `
+You are an ATS resume optimizer.
+
+Target Job Role: ${targetRole || "General"}
+
+Rewrite and improve the following resume professionally.
+Make it ATS optimized, structured, and impactful.
+
+Resume:
+${data}
+`;
+
+    const enhanced = await getEnhancedText(prompt);
+
+    res.json({
+      enhanced: enhanced   // ⭐ IMPORTANT — frontend expects "enhanced"
+    });
+
+  } catch (err) {
+    console.error("❌ Enhance Route Error:", err.message);
+    res.status(500).json({ error: "AI enhancement failed" });
+  }
+});
 
 module.exports = router;

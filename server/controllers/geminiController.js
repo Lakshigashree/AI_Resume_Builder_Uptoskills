@@ -1,3 +1,33 @@
+const { analyzeResumeStructured } = require("../services/geminiService");
+
+const analyzeResume = async (req, res) => {
+  try {
+    const { resumeText } = req.body;
+
+    if (!resumeText) {
+      return res.status(400).json({
+        success: false,
+        message: "Resume text is required"
+      });
+    }
+
+    const analysis = await analyzeResumeStructured(resumeText);
+
+    return res.status(200).json({
+      success: true,
+      analysis
+    });
+
+  } catch (error) {
+    console.error("❌ Analyze Resume Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to analyze resume"
+    });
+  }
+};
+
+
 const { getEnhancedText } = require("../services/geminiService");
 const { saveEnhancementHistory } = require("../models/resumeModel");
 
@@ -14,51 +44,27 @@ const enhanceSection = async (req, res) => {
     const prompt = generatePrompt(section, data);
     const enhancedText = await getEnhancedText(prompt);
     
-    // 🔹 FIX 1: Strip Markdown code blocks (e.g., ```json ... ```) 
-    // AI models often wrap JSON in these blocks, which causes JSON.parse to fail.
-    const cleanText = enhancedText.replace(/```json|```/gi, "").trim();
-
-    let finalData = cleanText;
-
-    // 🔹 FIX 2: Handle sections that MUST be Objects/Arrays
-    const jsonSections = ["education", "personal", "languages", "ats_score"];
-    
-    if (jsonSections.includes(section)) {
-      try {
-        finalData = JSON.parse(cleanText);
-      } catch (e) {
-        console.error(`⚠️ AI returned invalid JSON for ${section}. Falling back to raw text.`);
-        // Fallback to the cleaned text to avoid a 500 error, allowing the frontend to handle it
-        finalData = cleanText;
-      }
-    }
-    
     const processingTime = Date.now() - startTime;
 
-    // Save to database history
+    // Optionally save to database (won't affect functionality if it fails)
     try {
-      const historyData = typeof data === 'string' ? data : JSON.stringify(data);
-      const historyEnhanced = typeof finalData === 'string' ? finalData : JSON.stringify(finalData);
-      
       await saveEnhancementHistory(
         section, 
-        historyData, 
-        historyEnhanced, 
+        typeof data === 'string' ? data : JSON.stringify(data), 
+        enhancedText, 
         processingTime
       );
     } catch (dbError) {
-      console.error("⚠️ History Save Failed:", dbError.message);
+      // Continue without throwing error
     }
 
-    // Send the response (enhanced can now be a String or an Object/Array)
-    res.status(200).json({ enhanced: finalData });
+    res.status(200).json({
+  success: true,
+  enhanced: enhancedText
+});
 
   } catch (err) {
-    console.error("❌ Gemini Controller Error:", err); 
-    res.status(500).json({ 
-      error: "Internal Server Error", 
-      details: err.message 
-    });
+    res.status(500).json({ error: "Something went wrong in enhanceSection" });
   }
 };
 
@@ -245,40 +251,6 @@ Original Resume:
 ${data}
 `;
 
-     case "ats_score":
-      if (!data || typeof data !== 'object') {
-        throw new Error("Invalid data format for ATS score");
-      }
-      
-      const jd = data.jobDescription || "No job description provided";
-      const resume = data.resumeText || "No resume content provided";
-
-      return `
-You are an expert ATS (Applicant Tracking System) optimization professional. 
-Analyze the provided Resume Content against the target Job Description.
-
-Instructions:
-1. Calculate a match score (0-100) based on hard skills, soft skills, and experience level.
-2. Identify "Missing Keywords" that are critical in the JD but absent in the Resume.
-3. Provide a brief professional "Analysis" (2-3 sentences) of the overall candidate fit.
-4. Provide "Actionable Fixes" - specific steps the user can take to improve this specific resume.
-
-Return ONLY a valid JSON object with this exact structure:
-{
-  "score": number,
-  "missingKeywords": ["keyword1", "keyword2"],
-  "analysis": "string summary",
-  "actionableFixes": ["fix1", "fix2"],
-  "formattingFeedback": "advice on readability"
-}
-
-Job Description:
-${jd}
-
-Resume Content:
-${resume}
-`;
-
     default:
       return `
 Polish the following resume section. Avoid using JSON, quotes, or unnecessary symbols.
@@ -289,4 +261,8 @@ ${JSON.stringify(data)}
   }
 };
 
-module.exports = { enhanceSection };
+module.exports = {
+  analyzeResume,
+  enhanceSection
+};
+

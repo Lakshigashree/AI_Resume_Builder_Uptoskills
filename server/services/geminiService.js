@@ -1,29 +1,33 @@
-/* server/services/geminiService.js */
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require("axios");
 
 const getEnhancedText = async (prompt) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("GEMINI_API_KEY missing");
+    const response = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "mistralai/mistral-7b-instruct",
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    // Set a longer timeout for slower networks
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    return text;
+    return response.data.choices[0].message.content;
   } catch (error) {
-    // Check if the error is specifically a fetch/network failure
-    if (error.message.includes("fetch failed")) {
-       console.error("❌ Network Error: Your server cannot reach Google. Check your internet or VPN.");
-       throw new Error("Network error: Server cannot reach AI services. Please check internet connectivity.");
-    }
-    console.error("❌ Error in getEnhancedText:", error.message);
-    throw new Error(`Failed to enhance text: ${error.message}`);
+    console.error("❌ OpenRouter Error:", error.response?.data || error.message);
+    throw new Error("Failed to enhance text");
   }
 };
 
-module.exports = { getEnhancedText };
+module.exports = {
+  getEnhancedText,
+};

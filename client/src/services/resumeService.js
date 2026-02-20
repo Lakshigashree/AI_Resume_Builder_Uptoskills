@@ -1070,3 +1070,72 @@ class ResumeService {
 // Create and export a singleton instance
 const resumeService = new ResumeService();
 export default resumeService;
+// ==============================
+// ATS ANALYSIS - FILE UPLOAD
+// ==============================
+export const analyzeATSFile = async (file) => {
+  try {
+    const formData = new FormData();
+    formData.append("resume", file);
+
+    const response = await fetch("http://localhost:5000/api/ats/analyze-file", {
+      method: "POST",
+      body: formData,
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error("ATS File Analysis Error:", error);
+    throw error;
+  }
+};
+
+// ==============================
+// ATS ANALYSIS - TEXT
+// ==============================
+export const analyzeATSText = async (text, resumeData) => {
+  try {
+    const response = await fetch("http://localhost:5000/api/ats/analyze-text", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text, resumeData }),
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error("ATS Text Analysis Error:", error);
+    throw error;
+  }
+};
+export const downloadPDF = async (content) => {
+  try {
+    const response = await fetch("http://localhost:5000/api/resume/download", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ content })
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to generate PDF");
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "AI_Enhanced_Resume.pdf";
+    a.click();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Download error:", error);
+  }
+};
+
+
+

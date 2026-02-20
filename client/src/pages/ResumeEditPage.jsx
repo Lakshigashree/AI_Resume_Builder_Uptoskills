@@ -6,6 +6,12 @@ import Navbar from "../components/Navbar/Navbar.jsx";
 import resumeService from "../services/resumeService.js";
 import { enhanceTextWithGemini } from "../services/geminiService.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { analyzeResume } from "../utils/resumeAnalyzer";
+import AISuggestionsPanel from "../components/AISuggestionsPanel";
+
+
 
 const ResumeEditPage = () => {
   const location = useLocation();
@@ -24,6 +30,12 @@ const ResumeEditPage = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [tempEditContent, setTempEditContent] = useState('');
   const [currentResumeId, setCurrentResumeId] = useState(savedResumeId);
+  const [targetRole, setTargetRole] = useState("");
+  const [analysis, setAnalysis] = useState(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  
+
+
 
   // Scroll to top when component mounts
   useEffect(() => {
@@ -34,45 +46,55 @@ const ResumeEditPage = () => {
     setEditedContent(e.target.value);
   };
 
-  // Enhanced AI enhancement function
+// Enhanced AI enhancement function
   const enhanceWithAI = async () => {
-    if (!editedContent.trim()) {
-      setError('No content to enhance. Please type or paste resume text.');
-      return;
+  if (!editedContent.trim()) {
+    setError("No content to enhance.");
+    return;
+  }
+
+  if (!targetRole) {
+    toast.error("Please select target job role for ATS analysis");
+    return;
+  }
+
+  setIsProcessing(true);
+  setError("");
+  setSuccessMessage("");
+
+  try {
+    // 🔹 aiResult is STRING (enhanced resume)
+    const aiResult = await enhanceTextWithGemini(
+      "full_resume",
+      editedContent,
+      targetRole
+    );
+
+    if (!aiResult || aiResult.length < 50) {
+      throw new Error("Empty AI response");
     }
 
-    setIsProcessing(true);
-    setError('');
-    setSuccessMessage('');
+    // Clean stars
+    const cleaned = aiResult.replace(/\*/g, "").trim();
 
-    try {
-      const enhanced = await enhanceTextWithGemini('full_resume', editedContent);
+    // Update resume
+    setEditedContent(cleaned);
+    setHasBeenEnhanced(true);
 
-      if (!enhanced) {
-        throw new Error('No enhanced content received from AI');
-      }
+    // 🔹 Now run local ATS analyzer
+    const atsResult = analyzeResume(cleaned, targetRole);
+    setAnalysis(atsResult);
+    setShowAnalysis(true);
 
-      const enhancedText = enhanced
-        .replace(/\*/g, '')
-        .trim();
+    setSuccessMessage("✨ Resume enhanced & ATS analysis generated!");
 
-      if (!enhancedText) {
-        throw new Error('AI returned empty enhanced content');
-      }
-
-      setEditedContent(enhancedText);
-      setHasBeenEnhanced(true);
-      setSuccessMessage('✨ Resume successfully enhanced with AI! Your content has been optimized for ATS compatibility and professional presentation.');
-
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccessMessage(''), 5000);
-    } catch (err) {
-      console.error('❌ AI Enhancement error:', err);
-      setError('AI Enhancement failed: ' + (err.message || 'Please try again later.'));
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  } catch (err) {
+    console.error(err);
+    setError("AI Enhancement failed. Please try again.");
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   // Reset to original content
   const resetToOriginal = () => {
@@ -81,6 +103,41 @@ const ResumeEditPage = () => {
     setSuccessMessage('');
     setError('');
   };
+  // ⭐ Apply ATS suggested keywords into resume
+const applyKeywordsToResume = (keywords) => {
+  if (!keywords || keywords.length === 0) {
+    toast.info("No keywords to apply");
+    return;
+  }
+
+  let updated = editedContent;
+
+  // Try finding skills section
+  const skillsRegex =
+    /(SKILLS|TECHNICAL SKILLS|CORE COMPETENCIES)([\s\S]*?)(\n[A-Z ]{3,}|$)/i;
+
+  const match = updated.match(skillsRegex);
+
+  if (match) {
+    // Add keywords to existing skills
+    const skillsBlock = match[0];
+    const newSkills = skillsBlock + ", " + keywords.join(", ");
+
+    updated = updated.replace(skillsBlock, newSkills);
+  } else {
+    // If skills section not found → create one
+    updated += `\n\nSKILLS\n${keywords.join(", ")}`;
+  }
+
+  setEditedContent(updated);
+
+  // Re-run ATS analysis after applying keywords
+  const result = analyzeResume(updated, targetRole);
+  setAnalysis(result);
+
+  toast.success("✅ Suggested keywords added to resume!");
+};
+
 
   // Manual editing functions
   const handleEditModeToggle = () => {
@@ -158,190 +215,50 @@ const ResumeEditPage = () => {
   };
 
   const handleDownload = async () => {
-    try {
-      // Simple PDF generation using html2pdf
-      const html2pdf = (await import('html2pdf.js')).default;
+  try {
+    const element = document.getElementById("resume-print");
 
-      // Create a comprehensive HTML resume with proper structure
-      const resumeHTML = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Resume - ${extractName(editedContent)}</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-              font-family: 'Arial', 'Helvetica', sans-serif;
-              background-color: #ffffff;
-              color: #333333;
-              line-height: 1.6;
-              font-size: 14px;
-            }
-            .resume-container {
-              max-width: 800px;
-              margin: 0 auto;
-              padding: 40px;
-              background-color: #ffffff;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-              border-bottom: 3px solid #00bda6;
-              padding-bottom: 20px;
-            }
-            .name {
-              color: #00bda6;
-              margin: 0 0 10px 0;
-              font-size: 28px;
-              font-weight: bold;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-            }
-            .contact-info {
-              margin-top: 10px;
-              color: #666666;
-              font-size: 14px;
-            }
-            .contact-item {
-              margin: 3px 0;
-              display: block;
-            }
-            .content {
-              font-size: 14px;
-              line-height: 1.8;
-              color: #333333;
-            }
-            .section {
-              margin-bottom: 20px;
-            }
-            .section-title {
-              font-size: 16px;
-              font-weight: bold;
-              color: #00bda6;
-              margin-bottom: 10px;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              border-bottom: 1px solid #e0e0e0;
-              padding-bottom: 3px;
-            }
-            .experience-item, .education-item {
-              margin-bottom: 15px;
-            }
-            .job-title, .degree {
-              font-weight: bold;
-              color: #333333;
-              font-size: 15px;
-            }
-            .company, .school {
-              color: #00bda6;
-              font-weight: 600;
-              font-size: 13px;
-            }
-            .date {
-              color: #666666;
-              font-style: italic;
-              font-size: 12px;
-            }
-            .description {
-              margin-top: 5px;
-              color: #555555;
-              font-size: 13px;
-            }
-            .skills {
-              display: flex;
-              flex-wrap: wrap;
-              gap: 5px;
-              margin-top: 8px;
-            }
-            .skill-tag {
-              background-color: #f0f9ff;
-              color: #00bda6;
-              padding: 3px 8px;
-              border-radius: 12px;
-              font-size: 11px;
-              font-weight: 500;
-              border: 1px solid #00bda6;
-            }
-            ul {
-              margin: 8px 0;
-              padding-left: 20px;
-            }
-            li {
-              margin-bottom: 3px;
-              color: #555555;
-              font-size: 13px;
-            }
-            .summary {
-              font-style: italic;
-              color: #666666;
-              margin-bottom: 15px;
-              padding: 12px;
-              background-color: #f8f9fa;
-              border-left: 3px solid #00bda6;
-              font-size: 13px;
-            }
-            p {
-              margin: 5px 0;
-              font-size: 13px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="resume-container">
-            <div class="header">
-              <h1 class="name">${extractName(editedContent)}</h1>
-              <div class="contact-info">
-                ${extractContactInfo(editedContent)}
-              </div>
-            </div>
-            <div class="content">
-              ${formatResumeContent(editedContent)}
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      const opt = {
-        margin: [0.5, 0.5, 0.5, 0.5],
-        filename: `resume-${extractName(editedContent).toLowerCase().replace(/\s+/g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          letterRendering: true,
-          allowTaint: true
-        },
-        jsPDF: {
-          unit: 'in',
-          format: 'letter',
-          orientation: 'portrait',
-          compress: true
-        }
-      };
-
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = resumeHTML;
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '0';
-      tempDiv.style.width = '800px';
-      tempDiv.style.backgroundColor = '#ffffff';
-      document.body.appendChild(tempDiv);
-
-      await html2pdf().set(opt).from(tempDiv).save();
-      document.body.removeChild(tempDiv);
-    } catch (error) {
-      console.error('PDF generation failed:', error);
-      // Fallback to text download
-      const blob = new Blob([editedContent], { type: "text/plain" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "resume.txt";
-      link.click();
+    if (!element) {
+      toast.error("Resume not ready");
+      return;
     }
-  };
+
+    await document.fonts.ready;
+    await new Promise(r => setTimeout(r, 800));
+
+    const canvas = await html2canvas(element, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: "#ffffff"
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const imgWidth = 210;
+    const pageHeight = 297;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save("Resume.pdf");
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to generate PDF");
+  }
+};
 
   // Helper functions for PDF generation
   const extractName = (text) => {
@@ -783,7 +700,48 @@ const ResumeEditPage = () => {
           )}
 
           {/* AI Enhance + Reset + Edit Buttons */}
-          <div className="flex justify-center gap-4 mb-8">
+          {/* Target Role Selector */}
+<div className="mb-6 max-w-md">
+  <label className="block text-sm font-medium text-gray-300 mb-2">
+    Target Job Role (for ATS analysis)
+  </label>
+
+  <select
+    value={targetRole}
+    onChange={(e) => setTargetRole(e.target.value)}
+    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+  >
+    <option value="">Select role...</option>
+
+    <optgroup label="IT Roles">
+      <option>Software Developer</option>
+      <option>Frontend Developer</option>
+      <option>Backend Developer</option>
+      <option>Full Stack Developer</option>
+      <option>Data Analyst</option>
+      <option>Machine Learning Engineer</option>
+    </optgroup>
+
+    <optgroup label="Commerce Roles">
+      <option>Accountant</option>
+      <option>Financial Analyst</option>
+      <option>Banking Associate</option>
+      <option>Auditor</option>
+      <option>Tax Consultant</option>
+    </optgroup>
+
+    <optgroup label="General Roles">
+      <option>HR Executive</option>
+      <option>Marketing Executive</option>
+      <option>Operations Executive</option>
+      <option>Customer Support</option>
+    </optgroup>
+  </select>
+</div>
+
+{/* AI Enhance + Reset + Edit Buttons */}
+<div className="flex justify-center gap-4 mb-8">         
+
             <button
               onClick={enhanceWithAI}
               disabled={isProcessing || isEditMode}
@@ -817,7 +775,6 @@ const ResumeEditPage = () => {
               </button>
             )}
           </div>
-
           {/* Manual Edit Mode Controls */}
           {isEditMode && (
             <div className="flex justify-center gap-4 mb-8">
@@ -858,6 +815,16 @@ const ResumeEditPage = () => {
               </div>
             </div>
           )}
+          {/* AI Suggestions Panel */}
+{showAnalysis && (
+  <div className="mt-6">
+    <AISuggestionsPanel
+  analysis={analysis}
+  onApplyKeywords={applyKeywordsToResume}
+/>
+
+  </div>
+)}
 
           {/* Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -900,7 +867,21 @@ const ResumeEditPage = () => {
                 /* Resume Preview */
                 <div className="bg-white border border-gray-600 rounded-xl shadow-lg overflow-hidden h-[700px]">
                   <div className="h-full overflow-y-auto p-6">
-                    <div style={{ fontFamily: 'Arial, sans-serif', lineHeight: '1.6', fontSize: '14px' }}>
+                    <div
+  id="resume-print"
+  style={{
+    fontFamily: 'Arial, sans-serif',
+    lineHeight: '1.6',
+    fontSize: '14px',
+    background: 'white',
+    padding: '40px',
+    width: '794px',
+    minHeight: '1123px',
+    margin: '0 auto'
+  }}
+>
+
+
                       <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '2px solid #00bda6', paddingBottom: '20px' }}>
                         <h1 style={{ color: '#00bda6', margin: '0 0 10px 0', fontSize: '28px', fontWeight: 'bold' }}>
                           {extractName(editedContent)}
