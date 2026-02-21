@@ -1,29 +1,14 @@
 import { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom";
 import Sidebar from "../Sidebar/Sidebar";
 import Navbar from "../Navbar/Navbar";
 import { useResume } from "../../context/ResumeContext";
 import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaGlobe, FaGithub } from "react-icons/fa";
 
-const Template29 = () => {
+const TemplateY = () => {
   const resumeRef = useRef(null);
   const { resumeData, setResumeData } = useResume();
   const [editMode, setEditMode] = useState(false);
   const [localData, setLocalData] = useState(resumeData);
-  const location = useLocation();
-  const [downloadRequested, setDownloadRequested] = useState(false);
-
-  // Auto-download trigger when coming from My Resumes
-  useEffect(() => {
-    if (location.state?.triggerDownload && resumeRef.current && !downloadRequested) {
-      setDownloadRequested(true);
-      // Small delay to ensure styles are fully loaded in the browser
-      setTimeout(() => {
-        const downloadBtn = document.querySelector('button[title="Download PDF"]');
-        if (downloadBtn) downloadBtn.click();
-      }, 1000);
-    }
-  }, [location.state, resumeRef, downloadRequested]);
 
   useEffect(() => {
     setLocalData(resumeData);
@@ -757,4 +742,4 @@ const Template29 = () => {
   );
 };
 
-export default Template29;
+export default TemplateY;

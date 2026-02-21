@@ -5,9 +5,21 @@ import Navbar from "../Navbar/Navbar";
 import { useResume } from "../../context/ResumeContext";
 import { useAuth } from "../../context/AuthContext";
 import resumeService from "../../services/resumeService";
-import { getSafeUrl } from "../../utils/ResumeConfig"; // Import the URL helper
+import { getSafeUrl } from "../../utils/ResumeConfig";
+import html2pdf from "html2pdf.js";
 
 const accent = "#bccfd0"; // soft teal-grey accent used across the layout
+
+// ========== HELPER FUNCTION FOR SAFE TEXT RENDERING ==========
+const renderSafeText = (item) => {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  if (typeof item === "object") {
+    // Try common property names in order of priority
+    return item.title || item.name || item.language || item.degree || JSON.stringify(item);
+  }
+  return String(item);
+};
 
 const DotRow = ({ filled = 0 }) => {
   return (
@@ -57,6 +69,7 @@ const TemplateNew = () => {
 
   const resumeData = resumeContext?.resumeData || {};
   const updateResumeData = resumeContext?.updateResumeData;
+  const sectionOrder = resumeContext?.sectionOrder || [];
 
   const [localData, setLocalData] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -216,10 +229,14 @@ const TemplateNew = () => {
     // Store original styles
     const originalHeight = element.style.height;
     const originalOverflow = element.style.overflow;
+    const originalPosition = element.style.position;
+    const originalZIndex = element.style.zIndex;
     
     // Temporarily adjust for PDF capture
     element.style.height = 'auto';
     element.style.overflow = 'visible';
+    element.style.position = 'relative';
+    element.style.zIndex = '1';
 
     const options = {
       margin: [5, 5, 5, 5],
@@ -235,9 +252,10 @@ const TemplateNew = () => {
         allowTaint: false,
         ignoreElements: (element) => {
           return element.getAttribute('data-html2canvas-ignore') === 'true' ||
-                 element.classList.contains('hide-in-pdf') ||
+                 element.classList.contains('no-print') ||
                  element.tagName === 'BUTTON' ||
-                 element.closest('button') !== null;
+                 element.closest('button') !== null ||
+                 element.classList.contains('hide-in-pdf');
         }
       },
       jsPDF: { 
@@ -245,24 +263,21 @@ const TemplateNew = () => {
         format: 'a4', 
         orientation: 'portrait',
         compress: true
-      },
-      pagebreak: { mode: ['css', 'legacy'] }
+      }
     };
 
     toast.info('📄 Generating PDF...', { autoClose: false, toastId: 'pdf-toast' });
 
     try {
-      // Add a class to hide edit controls during PDF generation
-      const editControls = document.querySelectorAll('.hide-in-pdf');
-      editControls.forEach(el => el.setAttribute('data-pdf-hide', 'true'));
+      // Hide edit controls and buttons during PDF generation
+      const elementsToHide = document.querySelectorAll('.no-print, .hide-in-pdf, button');
+      elementsToHide.forEach(el => el.setAttribute('data-pdf-hide', 'true'));
       
-      await html2pdf()
-        .set(options)
-        .from(element)
-        .save();
+      // Generate PDF
+      await html2pdf().set(options).from(element).save();
       
-      // Restore edit controls
-      editControls.forEach(el => el.removeAttribute('data-pdf-hide'));
+      // Restore hidden elements
+      elementsToHide.forEach(el => el.removeAttribute('data-pdf-hide'));
       
       toast.update('pdf-toast', { 
         render: '✅ Download complete!', 
@@ -280,6 +295,8 @@ const TemplateNew = () => {
       // Restore original styles
       element.style.height = originalHeight;
       element.style.overflow = originalOverflow;
+      element.style.position = originalPosition;
+      element.style.zIndex = originalZIndex;
       setIsDownloading(false);
     }
   };
@@ -298,10 +315,14 @@ const TemplateNew = () => {
     // Store original styles
     const originalHeight = element.style.height;
     const originalOverflow = element.style.overflow;
+    const originalPosition = element.style.position;
+    const originalZIndex = element.style.zIndex;
     
     // Temporarily adjust for PDF capture
     element.style.height = 'auto';
     element.style.overflow = 'visible';
+    element.style.position = 'relative';
+    element.style.zIndex = '1';
 
     const options = {
       margin: [5, 5, 5, 5],
@@ -317,9 +338,10 @@ const TemplateNew = () => {
         allowTaint: false,
         ignoreElements: (element) => {
           return element.getAttribute('data-html2canvas-ignore') === 'true' ||
-                 element.classList.contains('hide-in-pdf') ||
+                 element.classList.contains('no-print') ||
                  element.tagName === 'BUTTON' ||
-                 element.closest('button') !== null;
+                 element.closest('button') !== null ||
+                 element.classList.contains('hide-in-pdf');
         }
       },
       jsPDF: { 
@@ -327,17 +349,17 @@ const TemplateNew = () => {
         format: 'a4', 
         orientation: 'portrait',
         compress: true
-      },
-      pagebreak: { mode: ['css', 'legacy'] }
+      }
     };
 
     toast.info('📄 Generating preview...', { autoClose: false, toastId: 'preview-toast' });
 
     try {
-      // Hide edit controls during preview
-      const editControls = document.querySelectorAll('.hide-in-pdf');
-      editControls.forEach(el => el.setAttribute('data-pdf-hide', 'true'));
+      // Hide edit controls and buttons during preview
+      const elementsToHide = document.querySelectorAll('.no-print, .hide-in-pdf, button');
+      elementsToHide.forEach(el => el.setAttribute('data-pdf-hide', 'true'));
       
+      // Generate PDF and open in new tab
       const pdf = await html2pdf()
         .set(options)
         .from(element)
@@ -348,8 +370,8 @@ const TemplateNew = () => {
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
       
-      // Restore edit controls
-      editControls.forEach(el => el.removeAttribute('data-pdf-hide'));
+      // Restore hidden elements
+      elementsToHide.forEach(el => el.removeAttribute('data-pdf-hide'));
       
       setTimeout(() => URL.revokeObjectURL(url), 1000);
 
@@ -369,6 +391,8 @@ const TemplateNew = () => {
       // Restore original styles
       element.style.height = originalHeight;
       element.style.overflow = originalOverflow;
+      element.style.position = originalPosition;
+      element.style.zIndex = originalZIndex;
       setIsPreviewing(false);
     }
   };
@@ -383,33 +407,68 @@ const TemplateNew = () => {
       setSaveStatus("Saving...");
       setIsSavingToDatabase(true);
 
+      // Normalize data before saving
+      const normalized = { ...localData };
+      
+      // Clean empty items from arrays
+      normalized.skills = (normalized.skills || []).filter(s => s && typeof s === 'string' && s.trim());
+      normalized.interests = (normalized.interests || []).filter(i => i && typeof i === 'string' && i.trim());
+      
+      normalized.achievements = (normalized.achievements || []).filter(a => {
+        if (typeof a === 'string') return a.trim();
+        return a?.title?.trim() || a?.description?.trim();
+      });
+      
+      normalized.education = (normalized.education || []).filter(
+        e => e?.degree?.trim() || e?.institution?.trim()
+      );
+      
+      normalized.experience = (normalized.experience || []).filter(
+        e => e?.title?.trim() || e?.company?.trim() || e?.description?.trim()
+      );
+      
+      normalized.projects = (normalized.projects || []).filter(
+        p => p?.name?.trim() || p?.description?.trim()
+      );
+      
+      normalized.certifications = (normalized.certifications || []).filter(
+        c => {
+          if (typeof c === 'string') return c.trim();
+          return c?.name?.trim() || c?.title?.trim();
+        }
+      );
+      
+      normalized.languages = (normalized.languages || []).filter(
+        l => l?.language?.trim()
+      );
+
       if (!resumeContext || typeof updateResumeData !== "function") {
         // Fallback: save to localStorage only
-        localStorage.setItem("resumeData", JSON.stringify(localData));
+        localStorage.setItem("resumeData", JSON.stringify(normalized));
       } else {
-        await updateResumeData(localData);
+        await updateResumeData(normalized);
       }
 
       if (isAuthenticated) {
         const structuredData = {
           templateId: 16,
-          name: localData.name || "",
-          role: localData.role || "",
-          email: localData.email || "",
-          phone: localData.phone || "",
-          location: localData.location || "",
-          linkedin: localData.linkedin || "",
-          github: localData.github || "",
-          portfolio: localData.portfolio || "",
-          summary: localData.summary || "",
-          skills: localData.skills || [],
-          experience: localData.experience || [],
-          education: localData.education || [],
-          projects: localData.projects || [],
-          certifications: localData.certifications || [],
-          achievements: localData.achievements || [],
-          interests: localData.interests || [],
-          languages: localData.languages || [],
+          name: normalized.name || "",
+          role: normalized.role || "",
+          email: normalized.email || "",
+          phone: normalized.phone || "",
+          location: normalized.location || "",
+          linkedin: normalized.linkedin || "",
+          github: normalized.github || "",
+          portfolio: normalized.portfolio || "",
+          summary: normalized.summary || "",
+          skills: normalized.skills || [],
+          experience: normalized.experience || [],
+          education: normalized.education || [],
+          projects: normalized.projects || [],
+          certifications: normalized.certifications || [],
+          achievements: normalized.achievements || [],
+          interests: normalized.interests || [],
+          languages: normalized.languages || [],
         };
 
         const saveResult = await resumeService.saveResumeData(structuredData);
@@ -456,14 +515,6 @@ const TemplateNew = () => {
     }
   };
 
-  // Render safe string
-  const renderSafe = (val) => {
-    if (!val) return "";
-    if (typeof val === 'string') return val;
-    if (typeof val === 'number') return val.toString();
-    return val.name || val.title || val.degree || "";
-  };
-
   // Show loading if no data
   if (!localData) {
     return (
@@ -494,6 +545,7 @@ const TemplateNew = () => {
   const certifications = Array.isArray(localData.certifications) ? localData.certifications : [];
   const skills = Array.isArray(localData.skills) ? localData.skills : [];
   const interests = Array.isArray(localData.interests) ? localData.interests : [];
+  const achievements = Array.isArray(localData.achievements) ? localData.achievements : [];
 
   // Convert languages to objects with proficiency if they're strings
   const normalizeLanguages = (langs) => {
@@ -580,6 +632,611 @@ const TemplateNew = () => {
       (typeof lang === 'string' && lang.trim().length > 0)
     );
 
+  const hasAchievements = () =>
+    Array.isArray(localData.achievements) &&
+    localData.achievements.some(ach => {
+      if (typeof ach === 'string') return ach.trim().length > 0;
+      return ach && ((ach.title && ach.title.trim().length > 0) || 
+                    (ach.description && ach.description.trim().length > 0));
+    });
+
+  // Map section keys to their display components
+  const sectionComponents = {
+    // Right side sections (main content)
+    summary: (editMode || hasSummary()) && (
+      <TimelineSection key="summary" number="01" title="PROFESSIONAL PROFILE">
+        {editMode && (
+          <div className="mb-2 flex justify-end no-print">
+            <button
+              type="button"
+              onClick={() => handleFieldChange("summary", "")}
+              className="text-xs text-red-500 hover:underline"
+            >
+              Clear section
+            </button>
+          </div>
+        )}
+        {editMode ? (
+          <div className="no-print">
+            <textarea
+              value={summary}
+              onChange={(e) => handleFieldChange("summary", e.target.value)}
+              className="h-32 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
+              placeholder="Write a short professional summary about yourself..."
+            />
+          </div>
+        ) : (
+          <p className="text-[14px] leading-relaxed text-[#3c4a4c]">{renderSafeText(summary)}</p>
+        )}
+      </TimelineSection>
+    ),
+
+    education: (editMode || hasEducation()) && (
+      <TimelineSection key="education" number="02" title="EDUCATION">
+        {editMode && (
+          <div className="mb-2 flex justify-end no-print">
+            <button
+              type="button"
+              onClick={() => handleFieldChange("education", [])}
+              className="text-xs text-red-500 hover:underline"
+            >
+              Remove all
+            </button>
+          </div>
+        )}
+        {editMode ? (
+          <div className="space-y-4 no-print">
+            {education.map((edu, index) => (
+              <div
+                key={index}
+                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-600">
+                    Education #{index + 1}
+                  </span>
+                  {education.length > 1 && (
+                    <button
+                      onClick={() => handleRemoveItem("education", index)}
+                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={edu.degree || ""}
+                  onChange={(e) => handleArrayUpdate("education", index, "degree", e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                  placeholder="Degree (e.g., BE in Computer Science)"
+                />
+                <input
+                  type="text"
+                  value={edu.institution || ""}
+                  onChange={(e) => handleArrayUpdate("education", index, "institution", e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                  placeholder="Institution (e.g., Bluefield University)"
+                />
+                <input
+                  type="text"
+                  value={edu.year || ""}
+                  onChange={(e) => handleArrayUpdate("education", index, "year", e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                  placeholder="Year (e.g., 2017 – 2021)"
+                />
+              </div>
+            ))}
+            <button
+              onClick={() => handleAddItem("education", { degree: "", institution: "", year: "" })}
+              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
+            >
+              + Add Education
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {education.map((edu, index) => (
+              <div key={index}>
+                {edu.degree && (
+                  <p className="text-[14px] font-semibold text-[#273335]">
+                    {renderSafeText(edu.degree)}
+                  </p>
+                )}
+                {(edu.institution || edu.year) && (
+                  <p className="mt-0.5 text-[14px] font-medium text-[#4f6669]">
+                    {renderSafeText(edu.institution)}
+                    {edu.year && ` (${renderSafeText(edu.year)})`}
+                  </p>
+                )}
+                {index < education.length - 1 && (
+                  <div className="my-2 h-px bg-gray-200" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </TimelineSection>
+    ),
+
+    projects: (editMode || hasProjects()) && (
+      <TimelineSection key="projects" number="03" title="PROJECTS">
+        {editMode && (
+          <div className="mb-2 flex justify-end no-print">
+            <button
+              type="button"
+              onClick={() => handleFieldChange("projects", [])}
+              className="text-xs text-red-500 hover:underline"
+            >
+              Remove all
+            </button>
+          </div>
+        )}
+        {editMode ? (
+          <div className="space-y-4 no-print">
+            {projects.map((project, index) => (
+              <div
+                key={index}
+                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-600">
+                    Project #{index + 1}
+                  </span>
+                  {projects.length > 1 && (
+                    <button
+                      onClick={() => handleRemoveItem("projects", index)}
+                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={project.name || ""}
+                  onChange={(e) => handleArrayUpdate("projects", index, "name", e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                  placeholder="Project Name (e.g., Portfolio Website)"
+                />
+                <textarea
+                  value={project.description || ""}
+                  onChange={(e) => handleArrayUpdate("projects", index, "description", e.target.value)}
+                  className="h-24 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
+                  placeholder="Project description"
+                />
+              </div>
+            ))}
+            <button
+              onClick={() => handleAddItem("projects", { name: "", description: "" })}
+              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
+            >
+              + Add Project
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {projects.map((project, index) => (
+              <div key={index}>
+                {project.name && (
+                  <p className="text-[14px] font-semibold text-[#273335]">
+                    {renderSafeText(project.name)}
+                  </p>
+                )}
+                {project.description && (
+                  <p className="text-[14px] text-[#4f6669]">
+                    {renderSafeText(project.description)}
+                  </p>
+                )}
+                {index < projects.length - 1 && (
+                  <div className="my-2 h-px bg-gray-200" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </TimelineSection>
+    ),
+
+    experience: (editMode || hasExperience()) && (
+      <TimelineSection key="experience" number="04" title="EXPERIENCE">
+        {editMode && (
+          <div className="mb-2 flex justify-end no-print">
+            <button
+              type="button"
+              onClick={() => handleFieldChange("experience", [])}
+              className="text-xs text-red-500 hover:underline"
+            >
+              Remove all
+            </button>
+          </div>
+        )}
+        {editMode ? (
+          <div className="space-y-4 no-print">
+            {experience.map((exp, index) => (
+              <div
+                key={index}
+                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-600">
+                    Experience #{index + 1}
+                  </span>
+                  {experience.length > 1 && (
+                    <button
+                      onClick={() => handleRemoveItem("experience", index)}
+                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={exp.title || ""}
+                  onChange={(e) => handleArrayUpdate("experience", index, "title", e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                  placeholder="Job Title (e.g., Frontend Intern)"
+                />
+                <input
+                  type="text"
+                  value={exp.company || ""}
+                  onChange={(e) => handleArrayUpdate("experience", index, "company", e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                  placeholder="Company (e.g., Google)"
+                />
+                <input
+                  type="text"
+                  value={exp.duration || ""}
+                  onChange={(e) => handleArrayUpdate("experience", index, "duration", e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                  placeholder="Duration (e.g., 2022 – 2023)"
+                />
+                <textarea
+                  value={exp.description || ""}
+                  onChange={(e) => handleArrayUpdate("experience", index, "description", e.target.value)}
+                  className="h-24 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
+                  placeholder="Job description and responsibilities"
+                />
+              </div>
+            ))}
+            <button
+              onClick={() => handleAddItem("experience", { title: "", company: "", duration: "", description: "" })}
+              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
+            >
+              + Add Experience
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {experience.map((exp, index) => (
+              <div key={index}>
+                {exp.title && (
+                  <p className="text-[14px] font-semibold text-[#273335]">
+                    {renderSafeText(exp.title)}
+                    {exp.company && ` — ${renderSafeText(exp.company)}`}
+                  </p>
+                )}
+                {exp.duration && (
+                  <p className="text-[14px] font-medium text-[#4f6669]">
+                    {renderSafeText(exp.duration)}
+                  </p>
+                )}
+                {exp.description && (
+                  <p className="mt-1.5 text-[14px] text-[#4f6669]">
+                    {renderSafeText(exp.description)}
+                  </p>
+                )}
+                {index < experience.length - 1 && (
+                  <div className="my-3 h-px bg-gray-200" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </TimelineSection>
+    ),
+
+    certifications: (editMode || hasCertifications()) && (
+      <TimelineSection key="certifications" number="05" title="CERTIFICATIONS">
+        {editMode && (
+          <div className="mb-2 flex justify-end no-print">
+            <button
+              type="button"
+              onClick={() => handleFieldChange("certifications", [])}
+              className="text-xs text-red-500 hover:underline"
+            >
+              Remove all
+            </button>
+          </div>
+        )}
+        {editMode ? (
+          <div className="space-y-4 no-print">
+            {certifications.map((cert, index) => (
+              <div
+                key={index}
+                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-600">
+                    Certification #{index + 1}
+                  </span>
+                  {certifications.length > 1 && (
+                    <button
+                      onClick={() => handleRemoveItem("certifications", index)}
+                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={cert.name || cert.title || ""}
+                  onChange={(e) => handleArrayUpdate("certifications", index, "name", e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
+                  placeholder="Certification Name (e.g., AWS Cloud Practitioner)"
+                />
+              </div>
+            ))}
+            <button
+              onClick={() => handleAddItem("certifications", { name: "", title: "" })}
+              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
+            >
+              + Add Certification
+            </button>
+          </div>
+        ) : (
+          <ul className="ml-4 list-disc space-y-1 text-[14px] marker:text-[#4e6f73]">
+            {certifications
+              .map((c) => c?.name || c?.title || "")
+              .filter(Boolean)
+              .map((cert, idx) => (
+                <li key={idx}>{renderSafeText(cert)}</li>
+              ))}
+          </ul>
+        )}
+      </TimelineSection>
+    ),
+
+    achievements: (editMode || hasAchievements()) && (
+      <TimelineSection key="achievements" number="06" title="ACHIEVEMENTS">
+        {editMode && (
+          <div className="mb-2 flex justify-end no-print">
+            <button
+              type="button"
+              onClick={() => handleFieldChange("achievements", [])}
+              className="text-xs text-red-500 hover:underline"
+            >
+              Remove all
+            </button>
+          </div>
+        )}
+        {editMode ? (
+          <div className="space-y-2 no-print">
+            {achievements.map((ach, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2"
+              >
+                <input
+                  type="text"
+                  value={typeof ach === 'string' ? ach : ach.title || ""}
+                  onChange={(e) => {
+                    if (typeof ach === 'string') {
+                      handleSimpleArrayChange("achievements", index, e.target.value);
+                    } else {
+                      handleArrayUpdate("achievements", index, "title", e.target.value);
+                    }
+                  }}
+                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
+                  placeholder="Achievement"
+                />
+                {achievements.length > 1 && (
+                  <button
+                    onClick={() => handleRemoveItem("achievements", index)}
+                    className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              onClick={() => handleAddItem("achievements", "")}
+              className="w-full rounded bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600"
+            >
+              + Add Achievement
+            </button>
+          </div>
+        ) : (
+          <ul className="ml-4 list-disc space-y-1 text-[14px] marker:text-[#4e6f73]">
+            {achievements.map((ach, idx) => (
+              <li key={idx}>{renderSafeText(ach)}</li>
+            ))}
+          </ul>
+        )}
+      </TimelineSection>
+    ),
+
+    // Left sidebar sections
+    skills: (editMode || hasSkills()) && (
+      <section key="skills" className="mt-7 w-full text-left text-[14px] text-[#405053]">
+        <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
+          EXPERTISE SKILLS
+        </h3>
+        {editMode ? (
+          <div className="space-y-2 no-print">
+            {skills.map((skill, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2"
+              >
+                <input
+                  type="text"
+                  value={skill || ""}
+                  onChange={(e) => handleSimpleArrayChange("skills", index, e.target.value)}
+                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
+                  placeholder="Skill name"
+                />
+                {skills.length > 1 && (
+                  <button
+                    onClick={() => handleRemoveItem("skills", index)}
+                    className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              onClick={() => handleAddItem("skills", "")}
+              className="w-full rounded bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600"
+            >
+              + Add Skill
+            </button>
+          </div>
+        ) : (
+          <ul className="ml-4 list-disc space-y-1.5 marker:text-[#4e6f73]">
+            {skills
+              .filter((skill) => skill && skill.trim())
+              .map((skill, idx) => (
+                <li key={idx}>{renderSafeText(skill)}</li>
+              ))}
+          </ul>
+        )}
+      </section>
+    ),
+
+    languages: (editMode || hasLanguages()) && (
+      <section key="languages" className="mt-7 w-full text-left text-[14px] text-[#405053]">
+        <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
+          LANGUAGE
+        </h3>
+        {editMode ? (
+          <div className="space-y-3 no-print">
+            {languages.map((langObj, index) => (
+              <div
+                key={index}
+                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-600">
+                    Language #{index + 1}
+                  </span>
+                  {languages.length > 1 && (
+                    <button
+                      onClick={() => handleRemoveItem("languages", index)}
+                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={langObj.language || ""}
+                  onChange={(e) => handleArrayUpdate("languages", index, "language", e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
+                  placeholder="Language name (e.g., English)"
+                />
+                <div className="flex items-center gap-3">
+                  <label className="text-xs text-gray-600">
+                    Proficiency:
+                  </label>
+                  <div className="flex flex-1 items-center gap-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="6"
+                      value={langObj.proficiency || 4}
+                      onChange={(e) => handleArrayUpdate("languages", index, "proficiency", parseInt(e.target.value, 10))}
+                      className="flex-1"
+                    />
+                    <div className="flex items-center gap-1">
+                      <DotRow filled={langObj.proficiency || 4} />
+                      <span className="text-xs text-gray-600 w-8">
+                        ({langObj.proficiency || 4}/6)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={() => handleAddItem("languages", { language: "", proficiency: 4 })}
+              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
+            >
+              + Add Language
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {languages
+              .filter((lang) => lang.language && lang.language.trim())
+              .map((langObj, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2"
+                >
+                  <p>{renderSafeText(langObj.language)}</p>
+                  <DotRow filled={langObj.proficiency || 4} />
+                </div>
+              ))}
+          </div>
+        )}
+      </section>
+    ),
+
+    interests: (editMode || hasInterests()) && (
+      <section key="interests" className="mt-7 w-full text-left text-[14px] text-[#405053]">
+        <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
+          INTEREST
+        </h3>
+        {editMode ? (
+          <div className="space-y-2 no-print">
+            {interests.map((interest, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2"
+              >
+                <input
+                  type="text"
+                  value={interest || ""}
+                  onChange={(e) => handleSimpleArrayChange("interests", index, e.target.value)}
+                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
+                  placeholder="Interest name"
+                />
+                {interests.length > 1 && (
+                  <button
+                    onClick={() => handleRemoveItem("interests", index)}
+                    className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              onClick={() => handleAddItem("interests", "")}
+              className="w-full rounded bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600"
+            >
+              + Add Interest
+            </button>
+          </div>
+        ) : (
+          <ul className="ml-4 list-disc space-y-1.5 marker:text-[#4e6f73]">
+            {interests
+              .filter((interest) => interest && interest.trim())
+              .map((interest, idx) => (
+                <li key={idx}>{renderSafeText(interest)}</li>
+              ))}
+          </ul>
+        )}
+      </section>
+    ),
+  };
+
   return (
     <>
       <style>
@@ -592,6 +1249,9 @@ const TemplateNew = () => {
           [data-pdf-hide="true"] {
             display: none !important;
           }
+          .no-print {
+            display: block;
+          }
         `}
       </style>
       <div
@@ -602,7 +1262,14 @@ const TemplateNew = () => {
       >
         <Navbar />
         <div style={{ display: "flex" }}>
-          <Sidebar onEnhance={handleEnhance} resumeRef={resumeRef} />
+          <Sidebar 
+            onEnhance={handleEnhance} 
+            resumeRef={resumeRef}
+            onDownload={handleDownload}
+            onPreview={handlePreview}
+            isDownloading={isDownloading}
+            isPreviewing={isPreviewing}
+          />
 
           <div
             style={{
@@ -630,7 +1297,7 @@ const TemplateNew = () => {
                   style={{ minHeight: '100vh', alignItems: 'stretch' }}
                   data-resume-template="template-new"
                 >
-                  {/* Left sidebar */}
+                  {/* Left sidebar - Skills, Languages, Interests */}
                   <aside className="flex w-1/3 flex-col items-center bg-[#c1d5d5] px-8 pb-10 pt-10" style={{ minHeight: '100%', alignSelf: 'stretch' }}>
                     {/* Profile image - only shows when photo exists or in edit mode */}
                     {(hasProfileImage() || editMode) && (
@@ -651,7 +1318,7 @@ const TemplateNew = () => {
                         
                         {/* Edit mode upload controls - always visible in edit mode */}
                         {editMode && (
-                          <div className="mt-3 space-y-2 hide-in-pdf">
+                          <div className="mt-3 space-y-2 no-print">
                             <label className="flex cursor-pointer flex-col items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
                               <span className="mb-1">📷 {hasProfileImage() ? 'Change Photo' : 'Upload Photo'}</span>
                               <input
@@ -683,14 +1350,14 @@ const TemplateNew = () => {
                       </div>
                     )}
 
-                    {/* Contact - Now includes portfolio */}
+                    {/* Contact - All 5 links functional */}
                     <section className="mt-5 w-full text-left text-[14px] text-[#405053]">
                       <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
                         CONTACT
                       </h3>
                       <div className="space-y-2">
                         {editMode ? (
-                          <div className="hide-in-pdf">
+                          <div className="no-print">
                             <div className="flex items-center gap-2 mb-1">
                               <input
                                 type="text"
@@ -781,7 +1448,7 @@ const TemplateNew = () => {
                                 </button>
                               )}
                             </div>
-                            {/* NEW: Portfolio field */}
+                            {/* Portfolio field */}
                             <div className="flex items-center gap-2">
                               <input
                                 type="text"
@@ -806,24 +1473,29 @@ const TemplateNew = () => {
                             {phone && (
                               <p className="flex items-center gap-2">
                                 <span className="text-[12px]">📞</span>
-                                <span>{phone}</span>
+                                <a
+                                  href={getSafeUrl("phone", phone)}
+                                  style={{ color: "inherit", textDecoration: "none" }}
+                                >
+                                  {renderSafeText(phone)}
+                                </a>
                               </p>
                             )}
                             {email && (
                               <p className="flex items-center gap-2 break-all">
                                 <span className="text-[12px]">✉️</span>
                                 <a
-                                  href={`mailto:${email}`}
+                                  href={getSafeUrl("email", email)}
                                   style={{ color: "inherit", textDecoration: "none" }}
                                 >
-                                  {email}
+                                  {renderSafeText(email)}
                                 </a>
                               </p>
                             )}
                             {location && (
                               <p className="flex items-center gap-2">
                                 <span className="text-[12px]">📍</span>
-                                <span>{location}</span>
+                                <span>{renderSafeText(location)}</span>
                               </p>
                             )}
                             {linkedin && (
@@ -835,7 +1507,7 @@ const TemplateNew = () => {
                                   rel="noopener noreferrer"
                                   style={{ color: "inherit", textDecoration: "none" }}
                                 >
-                                  {linkedin}
+                                  LinkedIn
                                 </a>
                               </p>
                             )}
@@ -848,11 +1520,11 @@ const TemplateNew = () => {
                                   rel="noopener noreferrer"
                                   style={{ color: "inherit", textDecoration: "none" }}
                                 >
-                                  {github}
+                                  GitHub
                                 </a>
                               </p>
                             )}
-                            {/* NEW: Portfolio link display */}
+                            {/* Portfolio link display */}
                             {portfolio && (
                               <p className="flex items-center gap-2 break-all">
                                 <span className="text-[12px]">🌐</span>
@@ -862,7 +1534,7 @@ const TemplateNew = () => {
                                   rel="noopener noreferrer"
                                   style={{ color: "inherit", textDecoration: "none" }}
                                 >
-                                  {portfolio}
+                                  Portfolio
                                 </a>
                               </p>
                             )}
@@ -871,187 +1543,18 @@ const TemplateNew = () => {
                       </div>
                     </section>
 
-                    {/* Expertise skills - Only show if has content or edit mode */}
-                    {(editMode || hasSkills()) && (
-                      <section className="mt-7 w-full text-left text-[14px] text-[#405053]">
-                        <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
-                          EXPERTISE SKILLS
-                        </h3>
-                        {editMode ? (
-                          <div className="space-y-2 hide-in-pdf">
-                            {skills.map((skill, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2"
-                              >
-                                <input
-                                  type="text"
-                                  value={skill || ""}
-                                  onChange={(e) => handleSimpleArrayChange("skills", index, e.target.value)}
-                                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
-                                  placeholder="Skill name"
-                                />
-                                {skills.length > 1 && (
-                                  <button
-                                    onClick={() => handleRemoveItem("skills", index)}
-                                    className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                  >
-                                    Remove
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => handleAddItem("skills", "")}
-                              className="w-full rounded bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600"
-                            >
-                              + Add Skill
-                            </button>
-                          </div>
-                        ) : (
-                          <ul className="ml-4 list-disc space-y-1.5 marker:text-[#4e6f73]">
-                            {skills
-                              .filter((skill) => skill && skill.trim())
-                              .map((skill, idx) => (
-                                <li key={idx}>{skill}</li>
-                              ))}
-                          </ul>
-                        )}
-                      </section>
-                    )}
-
-                    {/* Language - Only show if has content or edit mode */}
-                    {(editMode || hasLanguages()) && (
-                      <section className="mt-7 w-full text-left text-[14px] text-[#405053]">
-                        <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
-                          LANGUAGE
-                        </h3>
-                        {editMode ? (
-                          <div className="space-y-3 hide-in-pdf">
-                            {languages.map((langObj, index) => (
-                              <div
-                                key={index}
-                                className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-semibold text-gray-600">
-                                    Language #{index + 1}
-                                  </span>
-                                  {languages.length > 1 && (
-                                    <button
-                                      onClick={() => handleRemoveItem("languages", index)}
-                                      className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={langObj.language || ""}
-                                  onChange={(e) => handleArrayUpdate("languages", index, "language", e.target.value)}
-                                  className="w-full rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
-                                  placeholder="Language name (e.g., English)"
-                                />
-                                <div className="flex items-center gap-3">
-                                  <label className="text-xs text-gray-600">
-                                    Proficiency:
-                                  </label>
-                                  <div className="flex flex-1 items-center gap-2">
-                                    <input
-                                      type="range"
-                                      min="0"
-                                      max="6"
-                                      value={langObj.proficiency || 4}
-                                      onChange={(e) => handleArrayUpdate("languages", index, "proficiency", parseInt(e.target.value, 10))}
-                                      className="flex-1"
-                                    />
-                                    <div className="flex items-center gap-1">
-                                      <DotRow filled={langObj.proficiency || 4} />
-                                      <span className="text-xs text-gray-600 w-8">
-                                        ({langObj.proficiency || 4}/6)
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => handleAddItem("languages", { language: "", proficiency: 4 })}
-                              className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                            >
-                              + Add Language
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2.5">
-                            {languages
-                              .filter((lang) => lang.language && lang.language.trim())
-                              .map((langObj, idx) => (
-                                <div
-                                  key={idx}
-                                  className="flex items-center gap-2"
-                                >
-                                  <p>{langObj.language}</p>
-                                  <DotRow filled={langObj.proficiency || 4} />
-                                </div>
-                              ))}
-                          </div>
-                        )}
-                      </section>
-                    )}
-
-                    {/* Interests - Only show if has content or edit mode */}
-                    {(editMode || hasInterests()) && (
-                      <section className="mt-7 w-full text-left text-[14px] text-[#405053]">
-                        <h3 className="mb-2 border-b border-white/60 pb-1 text-xs font-semibold tracking-[0.2em] text-[#4a6265]">
-                          INTEREST
-                        </h3>
-                        {editMode ? (
-                          <div className="space-y-2 hide-in-pdf">
-                            {interests.map((interest, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2"
-                              >
-                                <input
-                                  type="text"
-                                  value={interest || ""}
-                                  onChange={(e) => handleSimpleArrayChange("interests", index, e.target.value)}
-                                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-[13px] outline-none"
-                                  placeholder="Interest name"
-                                />
-                                {interests.length > 1 && (
-                                  <button
-                                    onClick={() => handleRemoveItem("interests", index)}
-                                    className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                  >
-                                    Remove
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => handleAddItem("interests", "")}
-                              className="w-full rounded bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600"
-                            >
-                              + Add Interest
-                            </button>
-                          </div>
-                        ) : (
-                          <ul className="ml-4 list-disc space-y-1.5 marker:text-[#4e6f73]">
-                            {interests
-                              .filter((interest) => interest && interest.trim())
-                              .map((interest, idx) => (
-                                <li key={idx}>{interest}</li>
-                              ))}
-                          </ul>
-                        )}
-                      </section>
-                    )}
+                    {/* DYNAMIC LEFT SIDEBAR SECTIONS - skills, languages, interests */}
+                    {(sectionOrder && sectionOrder.length > 0 ? sectionOrder : [
+                      "skills", "languages", "interests"
+                    ]).map((sectionKey) => {
+                      if (["skills", "languages", "interests"].includes(sectionKey)) {
+                        return sectionComponents[sectionKey] || null;
+                      }
+                      return null;
+                    })}
                   </aside>
 
-                  {/* Right content */}
+                  {/* Right content - Main sections */}
                   <main className="w-2/3 bg-white px-10 pb-10 pt-0" style={{ minHeight: '100%' }}>
                     {/* Shaded region above and behind the name header */}
                     <div className="-mx-10 h-20 bg-[#c1d5d5]" />
@@ -1060,7 +1563,7 @@ const TemplateNew = () => {
                     <header className="mt-0 mb-6">
                       <div className="-mx-10 bg-[#c1d5d5] px-10 py-6 text-center">
                         {editMode ? (
-                          <div className="hide-in-pdf space-y-2">
+                          <div className="no-print space-y-2">
                             <input
                               type="text"
                               value={headerName}
@@ -1079,414 +1582,54 @@ const TemplateNew = () => {
                         ) : (
                           <>
                             <h1 className="text-[34px] font-bold tracking-[0.4em] text-[#48656b]">
-                              {headerName}
+                              {renderSafeText(headerName)}
                             </h1>
                             <p className="mt-2 text-[20px] tracking-[0.55em] text-[#6c858b]">
-                              {role}
+                              {renderSafeText(role)}
                             </p>
                           </>
                         )}
                       </div>
                     </header>
 
-                    {/* Timeline sections on white background */}
+                    {/* DYNAMIC RIGHT CONTENT SECTIONS - summary, experience, education, projects, certifications, achievements */}
                     <div className="relative mt-8 pl-2">
-                      {/* Professional Profile */}
-                      {(editMode || hasSummary()) && (
-                        <TimelineSection number="01" title="PROFESSIONAL PROFILE">
-                          {editMode && (
-                            <div className="mb-2 flex justify-end hide-in-pdf">
-                              <button
-                                type="button"
-                                onClick={() => handleFieldChange("summary", "")}
-                                className="text-xs text-red-500 hover:underline"
-                              >
-                                Clear section
-                              </button>
-                            </div>
-                          )}
-                          {editMode ? (
-                            <div className="hide-in-pdf">
-                              <textarea
-                                value={summary}
-                                onChange={(e) => handleFieldChange("summary", e.target.value)}
-                                className="h-32 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
-                                placeholder="Write a short professional summary about yourself..."
-                              />
-                            </div>
-                          ) : (
-                            summary
-                          )}
-                        </TimelineSection>
-                      )}
-
-                      {/* Education */}
-                      {(editMode || hasEducation()) && (
-                        <TimelineSection number="02" title="EDUCATION">
-                          {editMode && (
-                            <div className="mb-2 flex justify-end hide-in-pdf">
-                              <button
-                                type="button"
-                                onClick={() => handleFieldChange("education", [])}
-                                className="text-xs text-red-500 hover:underline"
-                              >
-                                Remove all
-                              </button>
-                            </div>
-                          )}
-                          {editMode ? (
-                            <div className="space-y-4 hide-in-pdf">
-                              {education.map((edu, index) => (
-                                <div
-                                  key={index}
-                                  className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-gray-600">
-                                      Education #{index + 1}
-                                    </span>
-                                    {education.length > 1 && (
-                                      <button
-                                        onClick={() => handleRemoveItem("education", index)}
-                                        className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                      >
-                                        Remove
-                                      </button>
-                                    )}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={edu.degree || ""}
-                                    onChange={(e) => handleArrayUpdate("education", index, "degree", e.target.value)}
-                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Degree (e.g., BE in Computer Science)"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={edu.institution || ""}
-                                    onChange={(e) => handleArrayUpdate("education", index, "institution", e.target.value)}
-                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Institution (e.g., Bluefield University)"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={edu.year || ""}
-                                    onChange={(e) => handleArrayUpdate("education", index, "year", e.target.value)}
-                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Year (e.g., 2017 – 2021)"
-                                  />
-                                </div>
-                              ))}
-                              <button
-                                onClick={() => handleAddItem("education", { degree: "", institution: "", year: "" })}
-                                className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                              >
-                                + Add Education
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {education.map((edu, index) => (
-                                <div key={index}>
-                                  {edu.degree && (
-                                    <p className="text-[14px] font-semibold text-[#273335]">
-                                      {edu.degree}
-                                    </p>
-                                  )}
-                                  {(edu.institution || edu.year) && (
-                                    <p className="mt-0.5 text-[14px] font-medium text-[#4f6669]">
-                                      {edu.institution}
-                                      {edu.year && ` (${edu.year})`}
-                                    </p>
-                                  )}
-                                  {index < education.length - 1 && (
-                                    <div className="my-2 h-px bg-gray-200" />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </TimelineSection>
-                      )}
-
-                      {/* Projects */}
-                      {(editMode || hasProjects()) && (
-                        <TimelineSection number="03" title="PROJECTS">
-                          {editMode && (
-                            <div className="mb-2 flex justify-end hide-in-pdf">
-                              <button
-                                type="button"
-                                onClick={() => handleFieldChange("projects", [])}
-                                className="text-xs text-red-500 hover:underline"
-                              >
-                                Remove all
-                              </button>
-                            </div>
-                          )}
-                          {editMode ? (
-                            <div className="space-y-4 hide-in-pdf">
-                              {projects.map((project, index) => (
-                                <div
-                                  key={index}
-                                  className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-gray-600">
-                                      Project #{index + 1}
-                                    </span>
-                                    {projects.length > 1 && (
-                                      <button
-                                        onClick={() => handleRemoveItem("projects", index)}
-                                        className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                      >
-                                        Remove
-                                      </button>
-                                    )}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={project.name || ""}
-                                    onChange={(e) => handleArrayUpdate("projects", index, "name", e.target.value)}
-                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Project Name (e.g., Portfolio Website)"
-                                  />
-                                  <textarea
-                                    value={project.description || ""}
-                                    onChange={(e) => handleArrayUpdate("projects", index, "description", e.target.value)}
-                                    className="h-24 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
-                                    placeholder="Project description"
-                                  />
-                                </div>
-                              ))}
-                              <button
-                                onClick={() => handleAddItem("projects", { name: "", description: "" })}
-                                className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                              >
-                                + Add Project
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {projects.map((project, index) => (
-                                <div key={index}>
-                                  {project.name && (
-                                    <p className="text-[14px] font-semibold text-[#273335]">
-                                      {project.name}
-                                    </p>
-                                  )}
-                                  {project.description && (
-                                    <p className="text-[14px] text-[#4f6669]">
-                                      {project.description}
-                                    </p>
-                                  )}
-                                  {index < projects.length - 1 && (
-                                    <div className="my-2 h-px bg-gray-200" />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </TimelineSection>
-                      )}
-
-                      {/* Experience */}
-                      {(editMode || hasExperience()) && (
-                        <TimelineSection number="04" title="EXPERIENCE">
-                          {editMode && (
-                            <div className="mb-2 flex justify-end hide-in-pdf">
-                              <button
-                                type="button"
-                                onClick={() => handleFieldChange("experience", [])}
-                                className="text-xs text-red-500 hover:underline"
-                              >
-                                Remove all
-                              </button>
-                            </div>
-                          )}
-                          {editMode ? (
-                            <div className="space-y-4 hide-in-pdf">
-                              {experience.map((exp, index) => (
-                                <div
-                                  key={index}
-                                  className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-gray-600">
-                                      Experience #{index + 1}
-                                    </span>
-                                    {experience.length > 1 && (
-                                      <button
-                                        onClick={() => handleRemoveItem("experience", index)}
-                                        className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                      >
-                                        Remove
-                                      </button>
-                                    )}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={exp.title || ""}
-                                    onChange={(e) => handleArrayUpdate("experience", index, "title", e.target.value)}
-                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Job Title (e.g., Frontend Intern)"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={exp.company || ""}
-                                    onChange={(e) => handleArrayUpdate("experience", index, "company", e.target.value)}
-                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Company (e.g., Google)"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={exp.duration || ""}
-                                    onChange={(e) => handleArrayUpdate("experience", index, "duration", e.target.value)}
-                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Duration (e.g., 2022 – 2023)"
-                                  />
-                                  <textarea
-                                    value={exp.description || ""}
-                                    onChange={(e) => handleArrayUpdate("experience", index, "description", e.target.value)}
-                                    className="h-24 w-full rounded border border-gray-300 px-2 py-1 text-[14px] leading-relaxed outline-none"
-                                    placeholder="Job description and responsibilities"
-                                  />
-                                </div>
-                              ))}
-                              <button
-                                onClick={() => handleAddItem("experience", { title: "", company: "", duration: "", description: "" })}
-                                className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                              >
-                                + Add Experience
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {experience.map((exp, index) => (
-                                <div key={index}>
-                                  {exp.title && (
-                                    <p className="text-[14px] font-semibold text-[#273335]">
-                                      {exp.title}
-                                      {exp.company && ` — ${exp.company}`}
-                                    </p>
-                                  )}
-                                  {exp.duration && (
-                                    <p className="text-[14px] font-medium text-[#4f6669]">
-                                      {exp.duration}
-                                    </p>
-                                  )}
-                                  {exp.description && (
-                                    <p className="mt-1.5 text-[14px] text-[#4f6669]">
-                                      {exp.description}
-                                    </p>
-                                  )}
-                                  {index < experience.length - 1 && (
-                                    <div className="my-3 h-px bg-gray-200" />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </TimelineSection>
-                      )}
-
-                      {/* Certifications */}
-                      {(editMode || hasCertifications()) && (
-                        <TimelineSection number="05" title="CERTIFICATIONS">
-                          {editMode && (
-                            <div className="mb-2 flex justify-end hide-in-pdf">
-                              <button
-                                type="button"
-                                onClick={() => handleFieldChange("certifications", [])}
-                                className="text-xs text-red-500 hover:underline"
-                              >
-                                Remove all
-                              </button>
-                            </div>
-                          )}
-                          {editMode ? (
-                            <div className="space-y-4 hide-in-pdf">
-                              {certifications.map((cert, index) => (
-                                <div
-                                  key={index}
-                                  className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-gray-600">
-                                      Certification #{index + 1}
-                                    </span>
-                                    {certifications.length > 1 && (
-                                      <button
-                                        onClick={() => handleRemoveItem("certifications", index)}
-                                        className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                      >
-                                        Remove
-                                      </button>
-                                    )}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={cert.name || cert.title || ""}
-                                    onChange={(e) => handleArrayUpdate("certifications", index, "name", e.target.value)}
-                                    className="w-full rounded border border-gray-300 px-2 py-1 text-[14px] outline-none"
-                                    placeholder="Certification Name (e.g., AWS Cloud Practitioner)"
-                                  />
-                                </div>
-                              ))}
-                              <button
-                                onClick={() => handleAddItem("certifications", { name: "", title: "" })}
-                                className="w-full rounded bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                              >
-                                + Add Certification
-                              </button>
-                            </div>
-                          ) : (
-                            <ul className="ml-4 list-disc space-y-1 text-[14px] marker:text-[#4e6f73]">
-                              {certifications
-                                .map((c) => c?.name || c?.title || "")
-                                .filter(Boolean)
-                                .map((cert, idx) => (
-                                  <li key={idx}>{cert}</li>
-                                ))}
-                            </ul>
-                          )}
-                        </TimelineSection>
-                      )}
+                      {(sectionOrder && sectionOrder.length > 0 ? sectionOrder : [
+                        "summary", "experience", "education", "projects", 
+                        "certifications", "achievements"
+                      ]).map((sectionKey) => {
+                        if (["summary", "experience", "education", "projects", 
+                             "certifications", "achievements"].includes(sectionKey)) {
+                          return sectionComponents[sectionKey] || null;
+                        }
+                        return null;
+                      })}
                     </div>
                   </main>
                 </div>
               </div>
             </div>
 
-            {/* Edit / Save Controls */}
+            {/* Floating Edit/Save Controls */}
             <div
+              className="no-print"
               style={{
+                position: "fixed",
+                bottom: "30px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 1000,
+                backgroundColor: "white",
+                padding: "1rem 2rem",
+                borderRadius: "50px",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
                 display: "flex",
-                flexDirection: "column",
                 gap: "1rem",
-                marginTop: "2rem",
-                alignItems: "center",
+                border: "1px solid #e5e7eb"
               }}
             >
-              {saveStatus && (
-                <p
-                  className="hide-in-pdf"
-                  style={{
-                    fontSize: "0.875rem",
-                    color:
-                      saveStatus.includes("Error") ||
-                      saveStatus.includes("Failed")
-                        ? "#ef4444"
-                        : "#10b981",
-                    fontWeight: 500,
-                    margin: 0,
-                  }}
-                >
-                  {saveStatus}
-                </p>
-              )}
-
               {editMode ? (
-                <div className="hide-in-pdf" style={{ display: "flex", gap: "1rem" }}>
+                <>
                   <button
                     type="button"
                     onClick={handleSave}
@@ -1494,7 +1637,7 @@ const TemplateNew = () => {
                     style={{
                       backgroundColor: isSavingToDatabase
                         ? "#9ca3af"
-                        : "#3b82f6",
+                        : "#10b981",
                       color: "#ffffff",
                       padding: "0.6rem 1.4rem",
                       borderRadius: "0.5rem",
@@ -1519,7 +1662,7 @@ const TemplateNew = () => {
                         }}
                       />
                     )}
-                    {isSavingToDatabase ? "Saving..." : "Save"}
+                    {isSavingToDatabase ? "Saving..." : "Save Changes"}
                   </button>
                   <button
                     type="button"
@@ -1537,22 +1680,21 @@ const TemplateNew = () => {
                   >
                     Cancel
                   </button>
-                </div>
+                </>
               ) : (
                 <button
                   type="button"
-                  className="hide-in-pdf"
+                  className="no-print"
                   onClick={() => setEditMode(true)}
                   style={{
                     backgroundColor: "#2563eb",
                     color: "#ffffff",
-                    padding: "0.75rem 1.5rem",
+                    padding: "0.6rem 1.4rem",
                     borderRadius: "0.5rem",
                     border: "none",
                     cursor: "pointer",
                     fontWeight: 600,
                     fontSize: "1rem",
-                    boxShadow: "0 2px 4px rgba(37, 99, 235, 0.3)",
                   }}
                 >
                   ✏️ Edit Resume
